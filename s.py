@@ -104,7 +104,7 @@ HTML = """<!DOCTYPE html>
 <div class="section">
   <div class="section-title">Open Positions</div>
   <table id="open-table">
-    <thead><tr><th>Coin</th><th>Entry</th><th>Current</th><th>PnL%</th><th>TP</th><th>SL</th><th>Size</th><th>Time</th></tr></thead>
+    <thead><tr><th>Coin</th><th>Entry</th><th>Current</th><th class="tip" data-tip="Profit/Loss as % and $ vs entry price">PnL%</th><th class="tip" data-tip="Take Profit — sells half your position at this price">TP</th><th class="tip" data-tip="Stop Loss — closes full position if price drops to here">SL</th><th class="tip" data-tip="Amount invested in this trade in USD">Size</th><th>Time</th></tr></thead>
     <tbody id="open-body"><tr><td colspan="8" class="empty">No open positions</td></tr></tbody>
   </table>
 </div>

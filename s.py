@@ -70,6 +70,7 @@ HTML = """<!DOCTYPE html>
 
 <div class="metrics" id="metrics">
   <div class="card"><div class="card-label">Balance</div><div class="card-value blue" id="m-balance">—</div></div>
+  <div class="card"><div class="card-label">Portfolio Value</div><div class="card-value blue" id="m-portfolio">—</div></div>
   <div class="card"><div class="card-label">Open Positions</div><div class="card-value yellow" id="m-open">—</div></div>
   <div class="card"><div class="card-label">Today's PnL</div><div class="card-value" id="m-daily">—</div></div>
   <div class="card"><div class="card-label">Total PnL</div><div class="card-value" id="m-total">—</div></div>
@@ -154,6 +155,8 @@ async function refresh() {
 
     // Metrics
     document.getElementById('m-balance').textContent = data.balance != null ? '$' + data.balance.toFixed(2) : '—';
+    const openVal = Object.values(data.open_trades || {}).reduce((s,t) => s + (prices[t.symbol] || t.entry_price) / t.entry_price * t.usd_size, 0);
+    document.getElementById('m-portfolio').textContent = '$' + ((data.balance || 0) + openVal).toFixed(2);
     document.getElementById('m-open').textContent    = Object.keys(data.open_trades || {}).length;
     document.getElementById('m-scans').textContent   = data.scan_count || 0;
     document.getElementById('m-closed').textContent  = (data.closed_trades || []).length;

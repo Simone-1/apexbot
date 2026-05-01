@@ -1,0 +1,6 @@
+state.json
+apexbot.log
+nohup.out
+__pycache__/
+venv/
+*.bak

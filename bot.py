@@ -15,13 +15,15 @@ CFG = {
     "min_rise":        2.5,      # Minimum 24h rise % to consider
     "scan_interval":   30,       # Seconds between scans
     "peak_hours":      (9, 23), # UTC hours for peak market activity
+    "partial_tp_trailing": 0.010,  # 1% trailing stop after partial TP
+    "max_trade_hours":     6,      # Close trade if open longer than this
 }
 
 COINS = [
     "BTCUSDT", "SOLUSDT", "PEPEUSDT", "DOGEUSDT", "SHIBUSDT",
     "FLOKIUSDT", "BONKUSDT", "WIFUSDT", "MEMEUSDT", "AVAXUSDT",
     "APTUSDT", "SUIUSDT", "SEIUSDT", "ARBUSDT", "OPUSDT",
-    "FETUSDT", "RNDRUSDT", "WLDUSDT", "1000SATSUSDT"
+    "FETUSDT", "RENDERUSDT", "WLDUSDT", "1000SATSUSDT"
 ]
 
 BASE       = "https://api.binance.com"
@@ -341,14 +343,56 @@ def check_stops():
                 state["open_trades"][tid]["high_price"] = price
                 trade["high_price"] = price
 
-            trail_sl = trade["high_price"] * (1 - CFG["trailing_stop"])
+            # Time-based exit — close if open longer than max_trade_hours
+            if trade.get("open_time") and trade["open_time"] != "imported":
+                try:
+                    opened = datetime.strptime(trade["open_time"], "%H:%M %d/%m").replace(
+                        year=datetime.now().year)
+                    hours_open = (datetime.now() - opened).total_seconds() / 3600
+                    if hours_open > CFG["max_trade_hours"]:
+                        close(trade, price, "TimeExit")
+                        time.sleep(0.3)
+                        continue
+                except:
+                    pass
 
-            if price >= trade["take_profit"]:
-                close(trade, price, "TP")
+            # Tiered exit — sell half at TP, tighten trailing stop on remainder
+            if not trade.get("partial") and price >= trade["take_profit"]:
+                symbol = trade["symbol"]
+                asset  = symbol.replace("USDT", "")
+                info   = _exchange_info.get(symbol, {})
+                step   = info.get("step", 0.001)
+                min_qty = info.get("min_qty", 0.001)
+                coin_bal = get_coin_balance(asset)
+                half_qty = round_step(coin_bal / 2, step)
+                if half_qty >= min_qty and half_qty * price >= info.get("min_notional", 5.0):
+                    try:
+                        signed("/api/v3/order", "POST", {
+                            "symbol":   symbol,
+                            "side":     "SELL",
+                            "type":     "MARKET",
+                            "quantity": f"{half_qty:.8f}".rstrip("0").rstrip("."),
+                        })
+                        partial_pnl = round((price - trade["entry_price"]) / trade["entry_price"] * (trade["usd_size"] / 2), 3)
+                        state["total_pnl"] = round(state.get("total_pnl", 0) + partial_pnl, 3)
+                        state["daily_pnl"] = round(state.get("daily_pnl", 0) + partial_pnl, 3)
+                        state["open_trades"][tid]["partial"] = True
+                        state["open_trades"][tid]["usd_size"] = round(trade["usd_size"] / 2, 2)
+                        state["open_trades"][tid]["trailing_stop"] = CFG["partial_tp_trailing"]
+                        trade["partial"] = True
+                        addlog(f"⚡ PARTIAL TP {symbol} @ {price:.6f} | Half sold | PnL: +{partial_pnl:.2f} | Trailing tightened to 1%")
+                        save()
+                    except Exception as e:
+                        addlog(f"❌ PARTIAL SELL FAILED {symbol}: {e}", "error")
+                else:
+                    close(trade, price, "TP")
             elif price <= trade["stop_loss"]:
                 close(trade, price, "SL")
-            elif price <= trail_sl and price < trade["entry_price"] * 1.003:
-                close(trade, price, "TrailSL")
+            else:
+                trail_pct = trade.get("trailing_stop", CFG["trailing_stop"])
+                trail_sl = trade["high_price"] * (1 - trail_pct)
+                if price <= trail_sl and price < trade["entry_price"] * 1.003:
+                    close(trade, price, "TrailSL")
 
             time.sleep(0.3)
 

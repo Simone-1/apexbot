@@ -142,6 +142,8 @@ def signed(path, method="GET", params=None):
         r = requests.get(BASE + path, params=p, headers=h, timeout=10)
     else:
         r = requests.post(BASE + path, params={"signature": sig}, data=p, headers=h, timeout=10)
+    if not r.ok:
+        log.error(f"Binance error {r.status_code}: {r.text}")
     r.raise_for_status()
     d = r.json()
     if isinstance(d, dict) and d.get("code", 0) < 0:

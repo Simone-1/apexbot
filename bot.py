@@ -140,7 +140,7 @@ def signed(path, method="GET", params=None):
     if method == "GET":
         r = requests.get(BASE + path, params=p, headers=h, timeout=10)
     else:
-        r = requests.post(BASE + path, params=p, headers=h, timeout=10)
+        r = requests.post(BASE + path, data=p, headers=h, timeout=10)
     r.raise_for_status()
     d = r.json()
     if isinstance(d, dict) and d.get("code", 0) < 0:

@@ -51,6 +51,9 @@ HTML = """<!DOCTYPE html>
   .config-tag span{color:#e2e8f0;font-weight:600}
   .coins-bar{display:flex;flex-wrap:wrap;gap:6px;padding:0 24px 20px}
   .coin-tag{background:#1a1f2e;border:1px solid #2d3748;border-radius:4px;padding:2px 8px;font-size:.72rem;color:#63b3ed;font-weight:600}
+  .tip{position:relative;cursor:help}
+  .tip::after{content:attr(data-tip);position:absolute;bottom:130%;left:50%;transform:translateX(-50%);background:#1a202c;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:.72rem;white-space:nowrap;border:1px solid #2d3748;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99}
+  .tip:hover::after{opacity:1}
   @media(max-width:600px){.metrics{grid-template-columns:1fr 1fr}.header{flex-direction:column;align-items:flex-start}}
 </style>
 </head>
@@ -75,13 +78,13 @@ HTML = """<!DOCTYPE html>
 </div>
 
 <div class="config-bar">
-  <div class="config-tag">⏰ Peak Hours <span>09:00–23:00 UTC</span></div>
-  <div class="config-tag">🎯 Take Profit <span>2.5%</span></div>
-  <div class="config-tag">🛑 Stop Loss <span>2.0%</span></div>
-  <div class="config-tag">📉 Trailing Stop <span>1.5%</span></div>
-  <div class="config-tag">💰 Trade Size <span>$10–$20</span></div>
-  <div class="config-tag">📊 Max Positions <span>5</span></div>
-  <div class="config-tag">🔍 Min Signal <span>55</span></div>
+  <div class="config-tag tip" data-tip="Hours when the bot actively looks for new trades">⏰ Peak Hours <span>09:00–23:00 UTC</span></div>
+  <div class="config-tag tip" data-tip="Sells half your position when price rises 2.5% from entry">🎯 Take Profit <span>2.5%</span></div>
+  <div class="config-tag tip" data-tip="Closes the full position if price drops 2% from entry to limit losses">🛑 Stop Loss <span>2.0%</span></div>
+  <div class="config-tag tip" data-tip="Follows price upward and sells if price drops 1.5% from its peak">📉 Trailing Stop <span>1.5%</span></div>
+  <div class="config-tag tip" data-tip="Amount spent per trade, sized at 8% of available balance">💰 Trade Size <span>$10–$20</span></div>
+  <div class="config-tag tip" data-tip="Maximum number of trades open at the same time">📊 Max Positions <span>8</span></div>
+  <div class="config-tag tip" data-tip="Minimum score a coin must reach before the bot buys. Score is based on price momentum, volume and time of day">🔍 Min Signal <span>50</span></div>
 </div>
 
 <div class="section">

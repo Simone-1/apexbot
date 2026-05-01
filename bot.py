@@ -6,11 +6,11 @@ from threading import Thread
 CFG = {
     "min_trade_usd":   10,       # Minimum trade size in USDT
     "max_trade_usd":   20,       # Maximum trade size in USDT
-    "max_positions":   5,        # Max concurrent open trades
+    "max_positions":   8,        # Max concurrent open trades
     "take_profit":     0.025,    # 2.5% take profit
     "stop_loss":       0.020,    # 2.0% hard stop loss
     "trailing_stop":   0.015,    # 1.5% trailing stop from peak
-    "min_score":       55,       # Minimum signal score to buy
+    "min_score":       50,       # Minimum signal score to buy
     "max_pump":        12,       # Ignore coins already pumped > 15%
     "min_rise":        2.5,      # Minimum 24h rise % to consider
     "scan_interval":   30,       # Seconds between scans
@@ -23,7 +23,8 @@ COINS = [
     "BTCUSDT", "SOLUSDT", "PEPEUSDT", "DOGEUSDT", "SHIBUSDT",
     "FLOKIUSDT", "BONKUSDT", "WIFUSDT", "MEMEUSDT", "AVAXUSDT",
     "APTUSDT", "SUIUSDT", "SEIUSDT", "ARBUSDT", "OPUSDT",
-    "FETUSDT", "RENDERUSDT", "WLDUSDT", "1000SATSUSDT"
+    "FETUSDT", "RENDERUSDT", "WLDUSDT", "1000SATSUSDT",
+    "TAOUSDT", "TIAUSDT", "JTOUSDT"
 ]
 
 BASE       = "https://api.binance.com"

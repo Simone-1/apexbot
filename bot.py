@@ -276,7 +276,10 @@ def buy(symbol, price):
         save()
 
     except Exception as e:
-        addlog(f"❌ BUY FAILED {symbol}: {e}", "error")
+        try:
+            addlog(f"❌ BUY FAILED {symbol}: {e} | Response: {e.response.text if hasattr(e, 'response') else 'no response'}", "error")
+        except:
+            addlog(f"❌ BUY FAILED {symbol}: {e}", "error")
 
 # ─── SELL ─────────────────────────────────────────────────────────────────────
 def close(trade, price, reason):

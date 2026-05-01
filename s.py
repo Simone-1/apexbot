@@ -1,31 +1,280 @@
-from flask import Flask,jsonify,request,render_template_string
-from threading import Thread
-from bot import state,scan_loop,get_balance,load,addlog,API_KEY,API_SECRET
-import os
-app=Flask(__name__)
-HTML="""<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>ApexBot</title><style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#030608;color:#4a8060;font-family:monospace;font-size:13px;}.hdr{background:#050e0a;border-bottom:1px solid #0d2a18;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;}.logo{font-size:17px;font-weight:900;}.logo span{color:#00ff88;}.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding:12px;}.stat{background:#050e0a;border:1px solid #0d2a18;border-radius:4px;padding:10px 12px;}.sl{font-size:8px;color:#0a1e10;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:4px;}.sv{font-weight:700;font-size:14px;}.green{color:#00ff88;}.red{color:#ff5050;}.blue{color:#00d4ff;}.dim{color:#1a4a2a;}.btn{border:none;padding:10px 20px;font-family:monospace;font-weight:900;font-size:10px;letter-spacing:0.2em;cursor:pointer;border-radius:3px;text-transform:uppercase;}.bs{background:linear-gradient(135deg,#00ff88,#00cc66);color:#030608;}.bx{background:rgba(255,50,50,0.1);color:#ff5050;border:1px solid rgba(255,50,50,0.3)!important;}.bw{padding:12px;display:flex;gap:8px;}.sec{padding:0 12px 12px;}.st{font-size:8px;color:#0d2a18;letter-spacing:0.25em;text-transform:uppercase;margin-bottom:8px;}.tr{background:#050e0a;border:1px solid #0d2a18;border-radius:4px;padding:10px 12px;margin-bottom:6px;}.tt{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}.tg{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}.tgi{background:#030608;border-radius:3px;padding:6px 8px;}.tgl{font-size:7px;color:#0a1e10;text-transform:uppercase;margin-bottom:2px;}.le{display:flex;gap:8px;padding:5px 8px;margin-bottom:3px;background:#050e0a;border-radius:3px;border-left:2px solid #0d2a18;}.le.s{border-left-color:#00cc66;}.le.e{border-left-color:#ff5050;}.le.w{border-left-color:#ffaa00;}.lt{font-size:8px;color:#0a1e10;min-width:58px;}.lm{font-size:10px;line-height:1.4;}.lm.s{color:#00cc66;}.lm.e{color:#ff5050;}.lm.w{color:#ffaa00;}.lm.i{color:#2a6040;}.tabs{display:flex;border-bottom:1px solid #0d2a18;padding:0 12px;margin-bottom:12px;}.tab{background:none;border:none;cursor:pointer;font-family:monospace;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;padding:8px 12px;color:#0d2a18;border-bottom:2px solid transparent;}.tab.on{color:#00ff88;border-bottom-color:#00ff88;}</style></head><body><div class="hdr"><div class="logo"><span>APEX</span>BOT V2</div><div id="st2" style="font-size:10px;"></div></div><div class="stats" id="sg"></div><div class="bw"><button class="btn bs" onclick="startBot()">START</button><button class="btn bx" onclick="stopBot()">STOP</button><button class="btn" style="background:#050e0a;color:#1a4a2a;border:1px solid #0d2a18;" onclick="loadData()">REFRESH</button></div><div class="tabs"><button class="tab on" onclick="showTab('trades',this)">Trades</button><button class="tab" onclick="showTab('log',this)">Log</button></div><div id="trades" class="sec"></div><div id="log" class="sec" style="display:none"></div><script>function showTab(n,b){document.getElementById('trades').style.display=n==='trades'?'block':'none';document.getElementById('log').style.display=n==='log'?'block':'none';document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));b.classList.add('on');}function fmt(n){if(!n)return'—';if(Math.abs(n)<0.000001)return n.toExponential(2);if(Math.abs(n)<0.001)return Number(n).toFixed(8);if(Math.abs(n)<0.01)return Number(n).toFixed(6);return Number(n).toFixed(4);}async function loadData(){const r=await fetch('/api/state');const d=await r.json();const running=d.running;document.getElementById('st2').innerHTML=`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${running?'#00ff88':'#0d2a18'};margin-right:5px;"></span><span style="color:${running?'#00ff88':'#0d2a18'};font-size:9px;">${running?'RUNNING':'OFFLINE'}</span>`;const pnl=d.total_pnl;const stats=[{l:'Today P&L',v:pnl!=null?(pnl>=0?'+':'')+`$${Math.abs(pnl).toFixed(2)}`:'—',c:pnl>=0?'green':'red'},{l:'Open Trades',v:d.open_count+'/8',c:'blue'},{l:'Win Rate',v:d.win_rate!=null?d.win_rate+'%':'—',c:d.win_rate>50?'green':d.win_rate!=null?'red':'dim'},{l:'Balance',v:d.balance!=null?`$${d.balance}`:'—',c:'green'},{l:'Scans',v:d.scan_count,c:'dim'},{l:'Peak Hours',v:d.peak?'YES':'OFF',c:d.peak?'green':'dim'}];document.getElementById('sg').innerHTML=stats.map(s=>`<div class="stat"><div class="sl">${s.l}</div><div class="sv ${s.c}">${s.v}</div></div>`).join('');const open=Object.values(d.open_trades||{});const closed=(d.closed_trades||[]).slice(0,20);let h='';if(open.length){h+=`<div class="st">Open (${open.length})</div>`;h+=open.map(t=>`<div class="tr"><div class="tt"><span style="font-weight:700;color:#e0ffe0">${t.symbol.replace('USDT','')}</span><span style="color:#2a6040;font-size:10px">${t.open_time}</span></div><div class="tg"><div class="tgi"><div class="tgl">Entry</div><div style="font-size:10px;color:#a0c0a0">$${fmt(t.entry_price)}</div></div><div class="tgi"><div class="tgl">TP</div><div style="font-size:10px;color:#00ff88">$${fmt(t.take_profit)}</div></div><div class="tgi"><div class="tgl">SL</div><div style="font-size:10px;color:#ff5050">$${fmt(t.stop_loss)}</div></div></div></div>`).join('');}if(closed.length){h+=`<div class="st" style="margin-top:14px">Closed</div>`;h+=closed.map(t=>{const p=t.pnl||0;return`<div class="tr"><div class="tt"><span style="font-weight:700;color:#e0ffe0">${t.symbol.replace('USDT','')}</span><span style="color:${p>=0?'#00ff88':'#ff5050'};font-weight:700">${p>=0?'+':''}$${Math.abs(p).toFixed(2)}</span></div><div style="font-size:9px;color:#0a1e10">${t.open_time} → ${t.close_time} (${t.reason})</div></div>`;}).join('');}if(!open.length&&!closed.length)h='<div style="color:#0d2a18;text-align:center;padding:40px 0">Start the bot to begin</div>';document.getElementById('trades').innerHTML=h;document.getElementById('log').innerHTML=(d.logs||[]).slice(0,60).map(l=>`<div class="le ${l.level==='warning'?'w':l.level==='error'?'e':l.level==='info'?'':'s'}"><span class="lt">${l.time}</span><span class="lm ${l.level==='warning'?'w':l.level==='error'?'e':'i'}">${l.msg}</span></div>`).join('')||'<div style="color:#0d2a18;text-align:center;padding:40px 0">No logs yet</div>';}async function startBot(){await fetch('/api/start',{method:'POST'});setTimeout(loadData,500);}async function stopBot(){await fetch('/api/stop',{method:'POST'});setTimeout(loadData,500);}loadData();setInterval(loadData,15000);</script></body></html>"""
-@app.route("/")
-def dashboard():return render_template_string(HTML)
-@app.route("/api/state")
-def api_state():
-    pnl=sum(t.get("pnl",0) for t in state["closed_trades"])
-    wins=sum(1 for t in state["closed_trades"] if t.get("pnl",0)>0)
-    total=len(state["closed_trades"])
-    return jsonify({"running":state["running"],"open_trades":state["open_trades"],"closed_trades":state["closed_trades"][:30],"logs":state["logs"][:60],"open_count":len(state["open_trades"]),"total_pnl":round(pnl,2),"win_rate":round(wins/total*100) if total else None,"scan_count":state["scan_count"],"peak":__import__("bot").is_peak(),"balance":get_balance()})
-@app.route("/api/start",methods=["POST"])
-def api_start():
-    if not state["running"]:
-        if not API_KEY or not API_SECRET:return jsonify({"error":"Set API keys"}),400
-        state["running"]=True
-        Thread(target=scan_loop,daemon=True).start()
-        addlog("Bot started")
-    return jsonify({"ok":True})
-@app.route("/api/stop",methods=["POST"])
-def api_stop():
-    state["running"]=False
-    addlog("Bot stopped","warning")
-    return jsonify({"ok":True})
-if __name__=="__main__":
+import json, os, threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from bot import state, start, stop, get_balance, CFG
+
+HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ApexBot V3</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0d0f14;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+  .header{background:#161b27;border-bottom:1px solid #2d3748;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  .logo{font-size:1.4rem;font-weight:700;color:#63b3ed;letter-spacing:1px}
+  .status-pill{padding:6px 16px;border-radius:999px;font-size:.8rem;font-weight:600;letter-spacing:.5px}
+  .status-pill.running{background:#22543d;color:#68d391}
+  .status-pill.stopped{background:#742a2a;color:#fc8181}
+  .controls{display:flex;gap:10px}
+  button{padding:8px 20px;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;transition:opacity .2s}
+  button:hover{opacity:.85}
+  .btn-start{background:#38a169;color:#fff}
+  .btn-stop{background:#e53e3e;color:#fff}
+  .btn-restart{background:#3182ce;color:#fff}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:20px 24px}
+  .card{background:#161b27;border:1px solid #2d3748;border-radius:12px;padding:16px}
+  .card-label{font-size:.72rem;color:#718096;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+  .card-value{font-size:1.4rem;font-weight:700}
+  .green{color:#68d391}.red{color:#fc8181}.blue{color:#63b3ed}.yellow{color:#f6e05e}
+  .section{padding:0 24px 20px}
+  .section-title{font-size:.85rem;font-weight:600;color:#718096;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px}
+  table{width:100%;border-collapse:collapse;font-size:.82rem}
+  th{text-align:left;padding:8px 12px;color:#718096;border-bottom:1px solid #2d3748;font-weight:500}
+  td{padding:8px 12px;border-bottom:1px solid #1a202c}
+  tr:hover td{background:#1a202c}
+  .badge{padding:2px 8px;border-radius:4px;font-size:.72rem;font-weight:600}
+  .badge-open{background:#2a4365;color:#63b3ed}
+  .badge-tp{background:#22543d;color:#68d391}
+  .badge-sl{background:#742a2a;color:#fc8181}
+  .badge-trail{background:#44337a;color:#b794f4}
+  .logs{background:#0a0c10;border:1px solid #2d3748;border-radius:12px;padding:16px;max-height:320px;overflow-y:auto;font-family:'JetBrains Mono','Courier New',monospace;font-size:.75rem}
+  .log-info{color:#a0aec0}
+  .log-warning{color:#f6e05e}
+  .log-error{color:#fc8181}
+  .log-time{color:#4a5568;margin-right:8px}
+  .empty{color:#4a5568;font-style:italic;padding:12px 0}
+  .pnl-pos{color:#68d391}
+  .pnl-neg{color:#fc8181}
+  @media(max-width:600px){.metrics{grid-template-columns:1fr 1fr}.header{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">⚡ ApexBot V3</div>
+  <div id="status-pill" class="status-pill stopped">STOPPED</div>
+  <div class="controls">
+    <button class="btn-start" onclick="action('start')">▶ Start</button>
+    <button class="btn-stop" onclick="action('stop')">■ Stop</button>
+    <button class="btn-restart" onclick="action('restart')">↺ Restart</button>
+  </div>
+</div>
+
+<div class="metrics" id="metrics">
+  <div class="card"><div class="card-label">Balance</div><div class="card-value blue" id="m-balance">—</div></div>
+  <div class="card"><div class="card-label">Open Positions</div><div class="card-value yellow" id="m-open">—</div></div>
+  <div class="card"><div class="card-label">Today's PnL</div><div class="card-value" id="m-daily">—</div></div>
+  <div class="card"><div class="card-label">Total PnL</div><div class="card-value" id="m-total">—</div></div>
+  <div class="card"><div class="card-label">Scans</div><div class="card-value" id="m-scans">—</div></div>
+  <div class="card"><div class="card-label">Closed Trades</div><div class="card-value" id="m-closed">—</div></div>
+</div>
+
+<div class="section">
+  <div class="section-title">Open Positions</div>
+  <table id="open-table">
+    <thead><tr><th>Coin</th><th>Entry</th><th>Current</th><th>PnL%</th><th>TP</th><th>SL</th><th>Size</th><th>Time</th></tr></thead>
+    <tbody id="open-body"><tr><td colspan="8" class="empty">No open positions</td></tr></tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">Trade History</div>
+  <table id="closed-table">
+    <thead><tr><th>Coin</th><th>Entry</th><th>Exit</th><th>PnL $</th><th>Reason</th><th>Opened</th><th>Closed</th></tr></thead>
+    <tbody id="closed-body"><tr><td colspan="7" class="empty">No closed trades yet</td></tr></tbody>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">Live Log</div>
+  <div class="logs" id="log-box"><div class="empty">Waiting for logs...</div></div>
+</div>
+
+<script>
+let prices = {};
+
+async function fetchPrices(symbols) {
+  try {
+    const res = await fetch('/prices?symbols=' + symbols.join(','));
+    prices = await res.json();
+  } catch(e) {}
+}
+
+function pnlClass(v) { return v >= 0 ? 'pnl-pos' : 'pnl-neg'; }
+function pnlStr(v)   { return (v >= 0 ? '+' : '') + v.toFixed(2); }
+
+function badgeReason(r) {
+  if (!r) return '';
+  if (r.startsWith('TP'))     return `<span class="badge badge-tp">${r}</span>`;
+  if (r.startsWith('SL'))     return `<span class="badge badge-sl">${r}</span>`;
+  if (r.startsWith('Trail'))  return `<span class="badge badge-trail">${r}</span>`;
+  return `<span class="badge badge-open">${r}</span>`;
+}
+
+async function refresh() {
+  try {
+    const res  = await fetch('/state');
+    const data = await res.json();
+
+    // Status pill
+    const pill = document.getElementById('status-pill');
+    pill.textContent = data.running ? 'RUNNING' : 'STOPPED';
+    pill.className   = 'status-pill ' + (data.running ? 'running' : 'stopped');
+
+    // Metrics
+    document.getElementById('m-balance').textContent = data.balance != null ? '$' + data.balance.toFixed(2) : '—';
+    document.getElementById('m-open').textContent    = Object.keys(data.open_trades || {}).length;
+    document.getElementById('m-scans').textContent   = data.scan_count || 0;
+    document.getElementById('m-closed').textContent  = (data.closed_trades || []).length;
+
+    const dp = data.daily_pnl || 0;
+    const tp = data.total_pnl || 0;
+    const dm = document.getElementById('m-daily');
+    const tm = document.getElementById('m-total');
+    dm.textContent = (dp >= 0 ? '+' : '') + dp.toFixed(2);
+    dm.className   = 'card-value ' + pnlClass(dp);
+    tm.textContent = (tp >= 0 ? '+' : '') + tp.toFixed(2);
+    tm.className   = 'card-value ' + pnlClass(tp);
+
+    // Open trades
+    const trades = Object.values(data.open_trades || {});
+    const openBody = document.getElementById('open-body');
+    if (trades.length === 0) {
+      openBody.innerHTML = '<tr><td colspan="8" class="empty">No open positions</td></tr>';
+    } else {
+      const syms = trades.map(t => t.symbol);
+      await fetchPrices(syms);
+      openBody.innerHTML = trades.map(t => {
+        const cur    = prices[t.symbol] || t.entry_price;
+        const pct    = ((cur - t.entry_price) / t.entry_price * 100);
+        const pnlUsd = (cur - t.entry_price) / t.entry_price * t.usd_size;
+        return `<tr>
+          <td><b>${t.symbol.replace('USDT','')}</b></td>
+          <td>${parseFloat(t.entry_price).toPrecision(5)}</td>
+          <td>${parseFloat(cur).toPrecision(5)}</td>
+          <td class="${pnlClass(pct)}">${pnlStr(pct)}%<br><small>${pnlStr(pnlUsd)}</small></td>
+          <td class="green">${parseFloat(t.take_profit).toPrecision(5)}</td>
+          <td class="red">${parseFloat(t.stop_loss).toPrecision(5)}</td>
+          <td>$${t.usd_size}</td>
+          <td>${t.open_time}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Closed trades
+    const closed     = (data.closed_trades || []).slice(0, 50);
+    const closedBody = document.getElementById('closed-body');
+    if (closed.length === 0) {
+      closedBody.innerHTML = '<tr><td colspan="7" class="empty">No closed trades yet</td></tr>';
+    } else {
+      closedBody.innerHTML = closed.map(t => `<tr>
+        <td><b>${t.symbol.replace('USDT','')}</b></td>
+        <td>${parseFloat(t.entry_price).toPrecision(5)}</td>
+        <td>${parseFloat(t.close_price).toPrecision(5)}</td>
+        <td class="${pnlClass(t.pnl)}">${pnlStr(t.pnl)}</td>
+        <td>${badgeReason(t.reason)}</td>
+        <td>${t.open_time}</td>
+        <td>${t.close_time}</td>
+      </tr>`).join('');
+    }
+
+    // Logs
+    const logs   = data.logs || [];
+    const logBox = document.getElementById('log-box');
+    if (logs.length === 0) {
+      logBox.innerHTML = '<div class="empty">Waiting for logs...</div>';
+    } else {
+      logBox.innerHTML = logs.map(l =>
+        `<div class="log-${l.level}"><span class="log-time">${l.time}</span>${l.msg}</div>`
+      ).join('');
+    }
+
+  } catch(e) {
+    console.error('Refresh error', e);
+  }
+}
+
+async function action(cmd) {
+  await fetch('/action?cmd=' + cmd, {method:'POST'});
+  setTimeout(refresh, 800);
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>"""
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *a): pass  # suppress access logs
+
+    def send_json(self, data, code=200):
+        body = json.dumps(data).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", len(body))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def send_html(self, html):
+        body = html.encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", len(body))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self):
+        path = self.path.split("?")[0]
+
+        if path == "/" or path == "/dashboard":
+            self.send_html(HTML)
+
+        elif path == "/state":
+            balance = get_balance()
+            payload = {**state, "balance": balance}
+            self.send_json(payload)
+
+        elif path == "/prices":
+            from urllib.parse import parse_qs, urlparse
+            qs      = parse_qs(urlparse(self.path).query)
+            symbols = qs.get("symbols", [""])[0].split(",")
+            result  = {}
+            for sym in symbols:
+                if sym:
+                    try:
+                        import requests as req
+                        r = req.get(f"https://api.binance.com/api/v3/ticker/price?symbol={sym}", timeout=5)
+                        result[sym] = float(r.json()["price"])
+                    except:
+                        pass
+            self.send_json(result)
+
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def do_POST(self):
+        from urllib.parse import parse_qs, urlparse
+        path = self.path.split("?")[0]
+
+        if path == "/action":
+            qs  = parse_qs(urlparse(self.path).query)
+            cmd = qs.get("cmd", [""])[0]
+            if cmd == "start":
+                start()
+            elif cmd == "stop":
+                stop()
+            elif cmd == "restart":
+                stop()
+                threading.Timer(2.0, start).start()
+            self.send_json({"ok": True})
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+if __name__ == "__main__":
+    from bot import load
     load()
-    port=int(os.environ.get("PORT",8080))
-    app.run(host="0.0.0.0",port=port,debug=False)
+    print("ApexBot V3 dashboard → http://0.0.0.0:8080")
+    HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()

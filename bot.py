@@ -431,7 +431,8 @@ def scan_loop():
                     addlog(f"Skipping scan — low balance ${balance}", "warning")
                 else:
                     tickers    = pub("/api/v3/ticker/24hr")
-                    relevant   = [t for t in tickers if t["symbol"] in COINS]
+                    coins = state.get("symbols", COINS)
+                    relevant   = [t for t in tickers if t["symbol"] in coins]
                     open_syms  = {t["symbol"] for t in state["open_trades"].values()}
                     candidates = [
                         (t, score(t)) for t in relevant

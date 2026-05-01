@@ -86,8 +86,9 @@ def round_step(qty, step):
     """Round quantity down to the nearest valid step size."""
     if step == 0:
         return qty
+    from decimal import Decimal, ROUND_DOWN
     precision = len(str(step).rstrip("0").split(".")[-1]) if "." in str(step) else 0
-    qty = (qty // step) * step
+    qty = float((Decimal(str(qty)) // Decimal(str(step))) * Decimal(str(step)))
     return round(qty, precision)
 
 # ─── PERSISTENCE ──────────────────────────────────────────────────────────────

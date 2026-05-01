@@ -90,7 +90,7 @@ HTML = """<!DOCTYPE html>
 <div class="section">
   <div class="section-title">Coins Being Traded</div>
   <div class="coins-bar">
-    <span class="coin-tag">BTC</span><span class="coin-tag">SOL</span><span class="coin-tag">PEPE</span>
+    <span class="coin-tag">SOL</span><span class="coin-tag">PEPE</span>
     <span class="coin-tag">DOGE</span><span class="coin-tag">SHIB</span><span class="coin-tag">FLOKI</span>
     <span class="coin-tag">BONK</span><span class="coin-tag">WIF</span><span class="coin-tag">MEME</span>
     <span class="coin-tag">AVAX</span><span class="coin-tag">APT</span><span class="coin-tag">SUI</span>

@@ -97,7 +97,7 @@ HTML = """<!DOCTYPE html>
     <span class="coin-tag">AVAX</span><span class="coin-tag">APT</span><span class="coin-tag">SUI</span>
     <span class="coin-tag">SEI</span><span class="coin-tag">ARB</span><span class="coin-tag">OP</span>
     <span class="coin-tag">FETU</span><span class="coin-tag">RENDER</span><span class="coin-tag">WLD</span>
-    <span class="coin-tag">1000SATS</span>
+    <span class="coin-tag">1000SATS</span><span class="coin-tag">ORDI</span><span class="coin-tag">STX</span><span class="coin-tag">TIA</span>
   </div>
 </div>
 

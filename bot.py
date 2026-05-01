@@ -135,12 +135,13 @@ def pub(path, params=None):
 def signed(path, method="GET", params=None):
     p = dict(params or {})
     p["timestamp"]  = int(time.time() * 1000)
-    p["signature"]  = sign(p)
+    sig = sign(p)
     h = {"X-MBX-APIKEY": API_KEY}
     if method == "GET":
+        p["signature"] = sig
         r = requests.get(BASE + path, params=p, headers=h, timeout=10)
     else:
-        r = requests.post(BASE + path, data=p, headers=h, timeout=10)
+        r = requests.post(BASE + path, params={"signature": sig}, data=p, headers=h, timeout=10)
     r.raise_for_status()
     d = r.json()
     if isinstance(d, dict) and d.get("code", 0) < 0:

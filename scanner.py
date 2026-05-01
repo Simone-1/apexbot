@@ -7,7 +7,7 @@ REPLACE_BOTTOM = 0.30
 RS_CANDLES     = 8
 BASE           = "https://api.binance.com"
 
-EXCLUDE = {"USDCUSDT","BUSDUSDT","TUSDUSDT","USDTUSDT","DAIUSDT","FDUSDUSDT","EURUSDT","GBPUSDT","BTCUSDT","ETHUSDT","WBTCUSDT","STETHUSDT","WETHUSDT","BETHUSDT","LDOETH"}
+EXCLUDE = {"USDCUSDT","BUSDUSDT","TUSDUSDT","USDTUSDT","DAIUSDT","FDUSDUSDT","EURUSDT","GBPUSDT","BTCUSDT","ETHUSDT","WBTCUSDT","STETHUSDT","WETHUSDT","BETHUSDT","LDOETH", "USD1USDT", "UUSDT", "LUNCUSDT", "BANANAS31USDT"}
 
 FALLBACK_COINS = ["SOLUSDT","PEPEUSDT","DOGEUSDT","SHIBUSDT","FLOKIUSDT","BONKUSDT","WIFUSDT","MEMEUSDT","AVAXUSDT","APTUSDT","SUIUSDT","SEIUSDT","ARBUSDT","OPUSDT","FETUSDT","RENDERUSDT","WLDUSDT","1000SATSUSDT","ORDIUSDT","STXUSDT","TIAUSDT","JUPUSDT","EIGENUSDT","PYTHUSDT"]
 
@@ -52,7 +52,7 @@ def get_eligible_symbols():
     eligible = []
     for t in tickers:
         sym = t["symbol"]
-        if not sym.endswith("USDT") or sym in EXCLUDE:
+        if not sym.endswith("USDT") or sym in EXCLUDE or not sym.isascii():
             continue
         try:
             if float(t["quoteVolume"]) >= MIN_VOLUME_USD:
@@ -109,9 +109,17 @@ def run_scan():
     new_coins = list(dict.fromkeys(keep+new_entrants))
     dropped = [s for s in current_coins if s not in new_coins]
     added   = [s for s in new_coins if s not in current_coins]
+    if dropped: log.info(f"Dropped: {dropped}")
+    if added:   log.info(f"Added:   {added}")
+    log.info(f"Top 5 RS: {[(s,scores[s]) for s in ranked[:5]]}")
+    save_symbols(new_coins)
+    log.info(f"--- Done. Watching {len(new_coins)} coins ---")
 
-cd ~/Documents/GitHub/apexbot
-git pull
-git add scanner.py
-git commit -m "Add scanner.py"
-git push
+if __name__ == "__main__":
+    log.info("Scanner started")
+    while True:
+        try:
+            run_scan()
+        except Exception as e:
+            log.error(f"Error: {e}")
+        time.sleep(SCAN_INTERVAL)

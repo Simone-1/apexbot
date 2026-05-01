@@ -11,8 +11,8 @@ CFG = {
     "stop_loss":       0.020,    # 2.0% hard stop loss
     "trailing_stop":   0.015,    # 1.5% trailing stop from peak
     "min_score":       55,       # Minimum signal score to buy
-    "max_pump":        15,       # Ignore coins already pumped > 15%
-    "min_rise":        1.5,      # Minimum 24h rise % to consider
+    "max_pump":        12,       # Ignore coins already pumped > 15%
+    "min_rise":        2.5,      # Minimum 24h rise % to consider
     "scan_interval":   30,       # Seconds between scans
     "peak_hours":      (9, 23), # UTC hours for peak market activity
 }

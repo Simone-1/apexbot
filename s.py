@@ -90,15 +90,7 @@ HTML = """<!DOCTYPE html>
 
 <div class="section">
   <div class="section-title">Coins Being Traded</div>
-  <div class="coins-bar">
-    <span class="coin-tag">SOL</span><span class="coin-tag">PEPE</span>
-    <span class="coin-tag">DOGE</span><span class="coin-tag">SHIB</span><span class="coin-tag">FLOKI</span>
-    <span class="coin-tag">BONK</span><span class="coin-tag">WIF</span><span class="coin-tag">MEME</span>
-    <span class="coin-tag">AVAX</span><span class="coin-tag">APT</span><span class="coin-tag">SUI</span>
-    <span class="coin-tag">SEI</span><span class="coin-tag">ARB</span><span class="coin-tag">OP</span>
-    <span class="coin-tag">FETU</span><span class="coin-tag">RENDER</span><span class="coin-tag">WLD</span>
-    <span class="coin-tag">1000SATS</span><span class="coin-tag">ORDI</span><span class="coin-tag">STX</span><span class="coin-tag">TIA</span><span class="coin-tag">JUP</span><span class="coin-tag">EIGEN</span><span class="coin-tag">PYTH</span>
-  </div>
+  <div class="coins-bar" id="coins-bar"></div>
 </div>
 
 <div class="section">
@@ -160,6 +152,13 @@ async function refresh() {
     document.getElementById('m-open').textContent    = Object.keys(data.open_trades || {}).length;
     document.getElementById('m-scans').textContent   = data.scan_count || 0;
     document.getElementById('m-closed').textContent  = (data.closed_trades || []).length;
+
+    // Coins being traded
+    const coinsBar = document.getElementById('coins-bar');
+    if (coinsBar) {
+      const symbols = data.symbols || [];
+      coinsBar.innerHTML = symbols.map(s => `<span class="coin-tag">${s.replace('USDT','')}</span>`).join('');
+    }
 
     const dp = data.daily_pnl || 0;
     const tp = data.total_pnl || 0;
@@ -266,7 +265,12 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/state":
             balance = get_balance()
-            payload = {**state, "balance": balance}
+            try:
+                with open("state.json") as f:
+                    fresh = json.load(f)
+            except:
+                fresh = state
+            payload = {**fresh, "balance": balance}
             self.send_json(payload)
 
         elif path == "/prices":

@@ -46,6 +46,11 @@ HTML = """<!DOCTYPE html>
   .empty{color:#4a5568;font-style:italic;padding:12px 0}
   .pnl-pos{color:#68d391}
   .pnl-neg{color:#fc8181}
+  .config-bar{display:flex;flex-wrap:wrap;gap:8px;padding:0 24px 16px}
+  .config-tag{background:#1a202c;border:1px solid #2d3748;border-radius:6px;padding:4px 12px;font-size:.75rem;color:#a0aec0}
+  .config-tag span{color:#e2e8f0;font-weight:600}
+  .coins-bar{display:flex;flex-wrap:wrap;gap:6px;padding:0 24px 20px}
+  .coin-tag{background:#1a1f2e;border:1px solid #2d3748;border-radius:4px;padding:2px 8px;font-size:.72rem;color:#63b3ed;font-weight:600}
   @media(max-width:600px){.metrics{grid-template-columns:1fr 1fr}.header{flex-direction:column;align-items:flex-start}}
 </style>
 </head>
@@ -67,6 +72,29 @@ HTML = """<!DOCTYPE html>
   <div class="card"><div class="card-label">Total PnL</div><div class="card-value" id="m-total">—</div></div>
   <div class="card"><div class="card-label">Scans</div><div class="card-value" id="m-scans">—</div></div>
   <div class="card"><div class="card-label">Closed Trades</div><div class="card-value" id="m-closed">—</div></div>
+</div>
+
+<div class="config-bar">
+  <div class="config-tag">⏰ Peak Hours <span>09:00–23:00 UTC</span></div>
+  <div class="config-tag">🎯 Take Profit <span>2.5%</span></div>
+  <div class="config-tag">🛑 Stop Loss <span>2.0%</span></div>
+  <div class="config-tag">📉 Trailing Stop <span>1.5%</span></div>
+  <div class="config-tag">💰 Trade Size <span>$10–$20</span></div>
+  <div class="config-tag">📊 Max Positions <span>5</span></div>
+  <div class="config-tag">🔍 Min Signal <span>55</span></div>
+</div>
+
+<div class="section">
+  <div class="section-title">Coins Being Traded</div>
+  <div class="coins-bar">
+    <span class="coin-tag">BTC</span><span class="coin-tag">SOL</span><span class="coin-tag">PEPE</span>
+    <span class="coin-tag">DOGE</span><span class="coin-tag">SHIB</span><span class="coin-tag">FLOKI</span>
+    <span class="coin-tag">BONK</span><span class="coin-tag">WIF</span><span class="coin-tag">MEME</span>
+    <span class="coin-tag">AVAX</span><span class="coin-tag">APT</span><span class="coin-tag">SUI</span>
+    <span class="coin-tag">SEI</span><span class="coin-tag">ARB</span><span class="coin-tag">OP</span>
+    <span class="coin-tag">FETU</span><span class="coin-tag">RENDER</span><span class="coin-tag">WLD</span>
+    <span class="coin-tag">1000SATS</span>
+  </div>
 </div>
 
 <div class="section">

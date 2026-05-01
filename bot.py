@@ -14,7 +14,7 @@ CFG = {
     "max_pump":        15,       # Ignore coins already pumped > 15%
     "min_rise":        1.5,      # Minimum 24h rise % to consider
     "scan_interval":   30,       # Seconds between scans
-    "peak_hours":      (13, 22), # UTC hours for peak market activity
+    "peak_hours":      (9, 23), # UTC hours for peak market activity
 }
 
 COINS = [

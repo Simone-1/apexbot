@@ -79,16 +79,14 @@ fi
 
 echo ""
 echo "[ Scanner ]"
-SCANNER_PID=$(pgrep -f "python.*scanner.py" | head -1)
-if [ -z "$SCANNER_PID" ]; then
-    fix "scanner.py not running - starting"
-    screen -dmS scanner_auto bash -c "cd /root/apexbot && source venv/bin/activate && python scanner.py"
-    sleep 2
-    SCANNER_PID=$(pgrep -f "python.*scanner.py" | head -1)
-    [ -n "$SCANNER_PID" ] && ok "Scanner started $SCANNER_PID" || warn "Scanner failed"
+if ! systemctl is-active --quiet apexbot-scanner; then
+    fix "scanner service not running - restarting"
+    systemctl restart apexbot-scanner
+    sleep 3
+    systemctl is-active --quiet apexbot-scanner && ok "scanner restarted" || warn "scanner failed to start"
     FIXES=$((FIXES+1))
 else
-    ok "Scanner running PID $SCANNER_PID"
+    ok "scanner service running (PID $(systemctl show -p MainPID --value apexbot-scanner))"
 fi
 
 echo ""

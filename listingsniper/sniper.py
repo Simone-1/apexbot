@@ -102,7 +102,7 @@ def wait_and_trade(symbol, article_id):
             if price and price>0:
                 addlog(f"🚀 {symbol} is now trading at ${price:.6f} — entering position")
                 monitor_trade(symbol,price,article_id); return
-        time.sleep(30)
+        time.sleep(5)
     addlog(f"⏰ {symbol} never started trading within 24h — skipping","warning")
 
 def scan_loop():
@@ -118,6 +118,10 @@ def scan_loop():
             if article_id in state["seen_listings"]: continue
             state["seen_listings"].append(article_id)
             state["seen_listings"]=state["seen_listings"][-200:]
+            # Skip old announcements - only act on listings within last 6 hours
+            age_hours = (int(time.time()*1000) - article.get('releaseDate', 0)) / 3600000
+            if age_hours > 48:
+                continue
             if not is_spot_listing(title): continue
             symbol=extract_symbol(title)
             if not symbol: addlog(f"Could not extract symbol from: {title}","warning"); continue

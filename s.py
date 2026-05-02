@@ -114,6 +114,26 @@ HTML = """<!DOCTYPE html>
   <div class="logs" id="log-box"><div class="empty">Waiting for logs...</div></div>
 </div>
 
+<div class="section">
+  <div class="section-title">Weekly Backtest</div>
+  <div style="color:#a0aec0;font-size:.82rem;margin-bottom:14px;">Run once a week to check if the scanner is working and whether to adjust trade size. Takes 20-30 minutes. Leave the page open.</div>
+  <button id="bt-btn" onclick="runBacktest()" style="background:#3182ce;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:.85rem;font-weight:600;">Run Backtest</button>
+  <div id="bt-status" style="margin-top:14px;color:#a0aec0;font-size:.82rem;"></div>
+  <div id="bt-results" style="margin-top:16px;display:none;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div style="background:#1a1f2e;border:1px solid #2d3748;border-radius:8px;padding:14px;">
+        <div style="font-size:.72rem;color:#718096;text-transform:uppercase;margin-bottom:8px;">Original Coin List</div>
+        <div id="bt-orig"></div>
+      </div>
+      <div style="background:#1a1f2e;border:1px solid #2d3748;border-radius:8px;padding:14px;">
+        <div style="font-size:.72rem;color:#718096;text-transform:uppercase;margin-bottom:8px;">RS Scanner (Current)</div>
+        <div id="bt-rs"></div>
+      </div>
+    </div>
+    <div id="bt-verdict" style="background:#1a1f2e;border:1px solid #2d3748;border-radius:8px;padding:16px;"></div>
+  </div>
+</div>
+
 <script>
 let prices = {};
 
@@ -234,9 +254,204 @@ async function action(cmd) {
 
 refresh();
 setInterval(refresh, 5000);
+
+let btPolling = null;
+async function runBacktest() {
+  document.getElementById('bt-btn').disabled = true;
+  document.getElementById('bt-btn').textContent = 'Running...';
+  document.getElementById('bt-status').textContent = 'Starting backtest... this takes 20-30 minutes. You can leave this page open.';
+  document.getElementById('bt-results').style.display = 'none';
+  try {
+    await fetch('/backtest/run', {method:'POST'});
+    btPolling = setInterval(pollBacktest, 5000);
+  } catch(e) {
+    document.getElementById('bt-status').textContent = 'Failed to start.';
+    document.getElementById('bt-btn').disabled = false;
+    document.getElementById('bt-btn').textContent = 'Run Backtest';
+  }
+}
+async function pollBacktest() {
+  try {
+    const res = await fetch('/backtest/status');
+    const d = await res.json();
+    document.getElementById('bt-status').textContent = d.status || '';
+    if (d.done && d.results) {
+      clearInterval(btPolling);
+      document.getElementById('bt-btn').disabled = false;
+      document.getElementById('bt-btn').textContent = 'Run Backtest Again';
+      showBacktestResults(d.results);
+    }
+  } catch(e) {}
+}
+function btStat(label, value) {
+  return '<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:.82rem;"><span style="color:#a0aec0;">' + label + '</span><span style="color:#e2e8f0;font-weight:600;">' + value + '</span></div>';
+}
+function showBacktestResults(r) {
+  document.getElementById('bt-results').style.display = 'block';
+  const orig = r.orig; const rs = r.rs;
+  document.getElementById('bt-orig').innerHTML =
+    btStat('Trades', orig.trades) + btStat('Win Rate', orig.win_rate + '%') +
+    btStat('Total PnL', '$' + (orig.total_pnl >= 0 ? '+' : '') + orig.total_pnl.toFixed(2)) +
+    btStat('Avg/Trade', '$' + (orig.avg_pnl >= 0 ? '+' : '') + orig.avg_pnl.toFixed(3)) +
+    btStat('Max Drawdown', '$' + orig.max_drawdown.toFixed(2));
+  document.getElementById('bt-rs').innerHTML =
+    btStat('Trades', rs.trades) + btStat('Win Rate', rs.win_rate + '%') +
+    btStat('Total PnL', '$' + (rs.total_pnl >= 0 ? '+' : '') + rs.total_pnl.toFixed(2)) +
+    btStat('Avg/Trade', '$' + (rs.avg_pnl >= 0 ? '+' : '') + rs.avg_pnl.toFixed(3)) +
+    btStat('Max Drawdown', '$' + rs.max_drawdown.toFixed(2));
+  const v = r.verdict;
+  let color = v.points >= 3 ? '#68d391' : v.points >= 1 ? '#f6e05e' : '#fc8181';
+  let html = '<div style="font-size:.9rem;font-weight:700;color:' + color + ';margin-bottom:12px;">' + v.conclusion + '</div>';
+  html += '<div style="font-size:.85rem;color:#e2e8f0;font-weight:600;margin-bottom:6px;">What you should do:</div>';
+  html += '<div style="font-size:.84rem;color:#cbd5e0;line-height:1.7;margin-bottom:12px;">' + v.action + '</div>';
+  html += '<div style="border-top:1px solid #2d3748;padding-top:10px;">';
+  v.reasons.forEach(function(reason) { html += '<div style="font-size:.78rem;color:#718096;margin-bottom:3px;">' + reason + '</div>'; });
+  html += '</div><div style="margin-top:8px;font-size:.72rem;color:#4a5568;">Last run: ' + new Date().toLocaleString() + '</div>';
+  document.getElementById('bt-verdict').innerHTML = html;
+}
 </script>
 </body>
 </html>"""
+
+import threading as _threading
+_bt_state = {"running": False, "done": False, "status": "", "results": None}
+
+def run_backtest_thread():
+    global _bt_state
+    _bt_state = {"running": True, "done": False, "status": "Starting...", "results": None}
+    try:
+        import time as _t, requests as _rq
+        from collections import defaultdict
+        from datetime import datetime, timezone
+        def pub(path, params=None):
+            try:
+                r=_rq.get("https://api.binance.com"+path,params=params,timeout=15); r.raise_for_status(); return r.json()
+            except: return None
+        DAYS=30;TRADE=15;TP=0.025;SL=0.02;TR=0.015;MS=55;RSC=8;REPL=0.30;MAX=8
+        ORIG=["SOLUSDT","PEPEUSDT","DOGEUSDT","SHIBUSDT","FLOKIUSDT","BONKUSDT","WIFUSDT","MEMEUSDT","AVAXUSDT","APTUSDT","SUIUSDT","SEIUSDT","ARBUSDT","OPUSDT","FETUSDT","RENDERUSDT","WLDUSDT","1000SATSUSDT","ORDIUSDT","STXUSDT","TIAUSDT","JUPUSDT","EIGENUSDT","PYTHUSDT"]
+        EXCL={"USDCUSDT","BUSDUSDT","TUSDUSDT","USDTUSDT","DAIUSDT","FDUSDUSDT","EURUSDT","GBPUSDT","BTCUSDT","ETHUSDT","WBTCUSDT","STETHUSDT","WETHUSDT","BETHUSDT","LDOETH","USD1USDT","UUSDT","LUNCUSDT","BANANAS31USDT","RLUSDUSDT","XAUTUSDT","PAXGUSDT","ZECUSDT","XUSDUSDT"}
+        now=int(_t.time()*1000); start=now-DAYS*24*60*60*1000
+        _bt_state["status"]="Fetching eligible symbols..."
+        tickers=pub("/api/v3/ticker/24hr"); eligible=[]
+        if tickers:
+            for t in tickers:
+                s=t["symbol"]
+                if not s.endswith("USDT") or s in EXCL or not s.isascii(): continue
+                try:
+                    if float(t["quoteVolume"])>=5_000_000: eligible.append(s)
+                except: continue
+        all_syms=list(set(eligible+ORIG+["BTCUSDT"]))
+        def get_candles(sym):
+            candles=[]; cur=start
+            while cur<now:
+                d=pub("/api/v3/klines",params={"symbol":sym,"interval":"15m","startTime":cur,"endTime":now,"limit":1000})
+                if not d: break
+                candles.extend(d)
+                if len(d)<1000: break
+                cur=d[-1][0]+1; _t.sleep(0.05)
+            return {c[0]:{"open":float(c[1]),"high":float(c[2]),"low":float(c[3]),"close":float(c[4]),"qv":float(c[7])} for c in candles}
+        cd={}
+        for i,sym in enumerate(all_syms):
+            cd[sym]=get_candles(sym); _bt_state["status"]=f"Fetching data... {i+1}/{len(all_syms)} coins"; _t.sleep(0.1)
+        if "BTCUSDT" not in cd: _bt_state["status"]="ERROR: No BTC data"; _bt_state["running"]=False; return
+        ts=sorted(cd["BTCUSDT"].keys())
+        def sc(op,cl,vol,t):
+            if op==0: return 0
+            ch=(cl-op)/op*100; vm=vol/1e6
+            dt=datetime.fromtimestamp(t/1000,tz=timezone.utc); pk=9<=dt.hour<23
+            s=0
+            if ch>1: s+=20
+            if ch>2: s+=15
+            if ch>3: s+=10
+            if ch>5: s+=10
+            if vm>10: s+=10
+            if vm>50: s+=10
+            if vm>100: s+=5
+            if pk: s+=10
+            if ch<0: s-=30
+            return s
+        def simulate(sel):
+            trades=[]; ot={}; tid=0
+            for i,t in enumerate(ts):
+                for sym in list(ot.keys()):
+                    tr=ot[sym]
+                    if sym not in cd or t not in cd[sym]: continue
+                    c=cd[sym][t]; pr=c["close"]; hi=c["high"]; lo=c["low"]
+                    if hi>tr["hi"]: tr["hi"]=hi; tr["tr"]=tr["hi"]*(1-TR)
+                    if hi>=tr["tp"]: trades.append({"pnl":round((tr["tp"]-tr["en"])/tr["en"]*TRADE,3),"reason":"TP"}); del ot[sym]; continue
+                    if lo<=tr["tr"] and tr["tr"]>tr["sl"]: trades.append({"pnl":round((tr["tr"]-tr["en"])/tr["en"]*TRADE,3),"reason":"TrailSL"}); del ot[sym]; continue
+                    if lo<=tr["sl"]: trades.append({"pnl":round((tr["sl"]-tr["en"])/tr["en"]*TRADE,3),"reason":"SL"}); del ot[sym]; continue
+                    if i-tr["oi"]>=24: trades.append({"pnl":round((pr-tr["en"])/tr["en"]*TRADE,3),"reason":"Time"}); del ot[sym]
+                if len(ot)>=MAX: continue
+                watch=sel(i); cands=[]
+                for sym in watch:
+                    if sym in ot or sym not in cd or t not in cd[sym]: continue
+                    c=cd[sym][t]; s=sc(c["open"],c["close"],c["qv"],t)
+                    if s>=MS: cands.append((sym,s,c["close"]))
+                cands.sort(key=lambda x:x[1],reverse=True)
+                for sym,s,pr in cands[:3]:
+                    if len(ot)>=MAX: break
+                    tid+=1; ot[sym]={"en":pr,"tp":pr*(1+TP),"sl":pr*(1-SL),"tr":pr*(1-TR),"hi":pr,"oi":i}
+            last=ts[-1]
+            for sym,tr in ot.items():
+                if sym in cd and last in cd[sym]:
+                    pr=cd[sym][last]["close"]; trades.append({"pnl":round((pr-tr["en"])/tr["en"]*TRADE,3),"reason":"Open"})
+            return trades
+        def calc_rs(sym,idx):
+            if idx<RSC: return None
+            sc2=cd.get(sym,{}); bc=cd.get("BTCUSDT",{})
+            st=ts[idx-RSC]; et=ts[idx]
+            if st not in sc2 or et not in sc2 or st not in bc or et not in bc: return None
+            so=sc2[st]["open"]; se=sc2[et]["close"]; bo=bc[st]["open"]; be=bc[et]["close"]
+            if so==0 or bo==0: return None
+            return (se-so)/so*100-(be-bo)/bo*100
+        cur_list=list(ORIG); rs_cache={}
+        def rs_sel(idx):
+            nonlocal cur_list
+            b=idx//60
+            if b not in rs_cache:
+                scores={sym:calc_rs(sym,idx) for sym in eligible}
+                scores={k:v for k,v in scores.items() if v is not None}
+                if scores:
+                    ranked=sorted(scores,key=lambda s:scores[s],reverse=True)
+                    n=len(cur_list); nk=max(1,round(n*(1-REPL)))
+                    cr=sorted(cur_list,key=lambda s:scores.get(s,-999),reverse=True)
+                    keep=cr[:nk]; ne=[s for s in ranked if s not in set(keep)][:(n-len(keep))]
+                    cur_list=list(dict.fromkeys(keep+ne))
+                rs_cache[b]=cur_list[:]
+            return rs_cache[b]
+        _bt_state["status"]="Running simulation 1: Original list..."
+        orig_t=simulate(lambda i:ORIG)
+        _bt_state["status"]="Running simulation 2: RS Scanner..."
+        rs_t=simulate(rs_sel)
+        def analyse(trades):
+            if not trades: return {"trades":0,"win_rate":0,"total_pnl":0,"avg_pnl":0,"max_drawdown":0}
+            pnls=[t["pnl"] for t in trades]; wins=[p for p in pnls if p>0]
+            run=pk=mdd=0
+            for p in pnls:
+                run+=p
+                if run>pk: pk=run
+                if pk-run>mdd: mdd=pk-run
+            return {"trades":len(trades),"win_rate":round(len(wins)/len(pnls)*100,1),"total_pnl":round(sum(pnls),2),"avg_pnl":round(sum(pnls)/len(pnls),3),"max_drawdown":round(mdd,2)}
+        os=analyse(orig_t); rs=analyse(rs_t)
+        pd=rs["total_pnl"]-os["total_pnl"]; wd=rs["win_rate"]-os["win_rate"]; dd=os["max_drawdown"]-rs["max_drawdown"]
+        pts=0; reasons=[]
+        if rs["total_pnl"]>os["total_pnl"]: pts+=1; reasons.append(f"RS Scanner made ${pd:+.2f} more profit")
+        else: pts-=1; reasons.append(f"RS Scanner made ${abs(pd):.2f} less profit")
+        if wd>2: pts+=1; reasons.append(f"Win rate improved by {wd:.1f}%")
+        elif wd<-2: pts-=1; reasons.append(f"Win rate dropped by {abs(wd):.1f}%")
+        else: reasons.append(f"Win rate similar ({wd:+.1f}%)")
+        if dd>0: pts+=1; reasons.append(f"Lower max drawdown by ${dd:.2f}")
+        else: reasons.append(f"Higher max drawdown by ${abs(dd):.2f}")
+        if rs["trades"]>=30: pts+=1; reasons.append(f"Enough trades to be reliable ({rs['trades']})")
+        else: reasons.append(f"Low trade count ({rs['trades']}) - not enough data yet")
+        if pts>=3: conc="🟢 The scanner is working well"; act="Everything looks good. Keep running as-is. If your trade size is below $20, raise it to $20. Run again next week."
+        elif pts>=1: conc="🟡 Scanner is slightly better but not conclusive"; act="Keep your current trade size for now. Run the backtest again in 2 weeks."
+        else: conc="🔴 The scanner is not outperforming"; act="Do not raise your trade size. Contact your assistant — do not change anything yourself."
+        _bt_state["results"]={"orig":os,"rs":rs,"verdict":{"points":pts,"reasons":reasons,"conclusion":conc,"action":act}}
+        _bt_state["status"]="Backtest complete."; _bt_state["done"]=True; _bt_state["running"]=False
+    except Exception as e:
+        _bt_state["status"]=f"Error: {e}"; _bt_state["running"]=False
 
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a): pass  # suppress access logs
@@ -288,6 +503,12 @@ class Handler(BaseHTTPRequestHandler):
                         pass
             self.send_json(result)
 
+        elif path == "/backtest/status":
+            self.send_json({"running":_bt_state["running"],"done":_bt_state["done"],"status":_bt_state["status"],"results":_bt_state["results"]})
+        elif path == "/backtest/run":
+            if not _bt_state["running"]:
+                _threading.Thread(target=run_backtest_thread,daemon=True).start()
+            self.send_json({"ok":True})
         else:
             self.send_response(404)
             self.end_headers()
@@ -307,6 +528,12 @@ class Handler(BaseHTTPRequestHandler):
                 stop()
                 threading.Timer(2.0, start).start()
             self.send_json({"ok": True})
+        elif path == "/backtest/status":
+            self.send_json({"running":_bt_state["running"],"done":_bt_state["done"],"status":_bt_state["status"],"results":_bt_state["results"]})
+        elif path == "/backtest/run":
+            if not _bt_state["running"]:
+                _threading.Thread(target=run_backtest_thread,daemon=True).start()
+            self.send_json({"ok":True})
         else:
             self.send_response(404)
             self.end_headers()

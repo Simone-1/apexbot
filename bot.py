@@ -324,7 +324,11 @@ def buy(symbol, price, score=None):
 
     except Exception as e:
         try:
-            addlog(f"❌ BUY FAILED {symbol}: {e} | Response: {e.response.text if hasattr(e, 'response') else 'no response'}", "error")
+            msg = e.response.text if hasattr(e, 'response') else 'no response'
+            addlog(f"❌ BUY FAILED {symbol}: {e} | Response: {msg}", "error")
+            if '-2010' in str(msg):
+                BLOCKED_SYMBOLS.add(symbol)
+                addlog(f"⛔ Auto-blocked {symbol} — not permitted on this account", "warning")
         except:
             addlog(f"❌ BUY FAILED {symbol}: {e}", "error")
 

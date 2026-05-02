@@ -55,8 +55,19 @@ def get_eligible_symbols():
         if not sym.endswith("USDT") or sym in EXCLUDE or not sym.isascii():
             continue
         try:
-            if float(t["quoteVolume"]) >= MIN_VOLUME_USD:
-                eligible.append(sym)
+            vol  = float(t["quoteVolume"])
+            pct  = float(t["priceChangePercent"])
+            price = float(t["lastPrice"])
+            # Minimum volume filter
+            if vol < MIN_VOLUME_USD:
+                continue
+            # Skip coins under $0.000001 (micro-cap junk)
+            if price < 0.000001:
+                continue
+            # Skip coins that have pumped more than 50% in 24h (likely manipulation)
+            if pct > 50:
+                continue
+            eligible.append(sym)
         except (KeyError,ValueError):
             continue
     log.info(f"Eligible universe: {len(eligible)} symbols")

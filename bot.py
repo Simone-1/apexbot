@@ -241,24 +241,34 @@ def score(ticker):
         return 0
 
 # ─── TRADE SIZE ───────────────────────────────────────────────────────────────
-def calc_trade_size(balance):
-    """Dynamically size trade between min and max based on available balance."""
+def calc_trade_size(balance, score=None):
+    """Size trade between min and max based on balance and signal confidence."""
     if balance is None or balance < CFG["min_trade_usd"]:
         return None
-    # Use 8% of balance per trade, clamped between min and max
-    size = round(balance * 0.08, 2)
-    size = max(CFG["min_trade_usd"], min(CFG["max_trade_usd"], size))
+    mn = CFG["min_trade_usd"]
+    mx = CFG["max_trade_usd"]
+    # Scale size by signal score if provided
+    if score is not None:
+        if score >= 80:
+            size = mx                          # high confidence -> max
+        elif score >= 65:
+            size = round(mn + (mx - mn) * 0.5, 2)  # medium -> midpoint
+        else:
+            size = mn                          # low confidence -> min
+    else:
+        size = round(balance * 0.08, 2)
+        size = max(mn, min(mx, size))
     # Make sure we have enough left after this trade
-    if balance < size + CFG["min_trade_usd"]:
-        size = CFG["min_trade_usd"]
+    if balance < size + mn:
+        size = mn
     if balance < size:
         return None
     return size
 
 # ─── BUY ──────────────────────────────────────────────────────────────────────
-def buy(symbol, price):
+def buy(symbol, price, score=None):
     balance = get_balance()
-    trade_usd = calc_trade_size(balance)
+    trade_usd = calc_trade_size(balance, score)
 
     if trade_usd is None:
         addlog(f"Skipping {symbol} — insufficient balance (${balance})", "warning")
@@ -479,7 +489,7 @@ def scan_loop():
                                 break
                             price = float(ticker["lastPrice"])
                             addlog(f"📡 Signal [{sc}] {ticker['symbol']} +{float(ticker['priceChangePercent']):.1f}% | Vol:${float(ticker['quoteVolume'])/1e6:.1f}M")
-                            buy(ticker["symbol"], price)
+                            buy(ticker["symbol"], price, sc)
                             time.sleep(1)
             else:
                 addlog(f"Max positions ({CFG['max_positions']}) open — monitoring only")

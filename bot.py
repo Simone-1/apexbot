@@ -266,7 +266,11 @@ def calc_trade_size(balance, score=None):
     return size
 
 # ─── BUY ──────────────────────────────────────────────────────────────────────
+BLOCKED_SYMBOLS = {"ORDIUSDT"}  # Symbols not permitted on this account
+
 def buy(symbol, price, score=None):
+    if symbol in BLOCKED_SYMBOLS:
+        return
     balance = get_balance()
     trade_usd = calc_trade_size(balance, score)
 

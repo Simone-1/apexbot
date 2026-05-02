@@ -456,6 +456,23 @@ def check_stops():
         except Exception as e:
             addlog(f"Stop check error {trade['symbol']}: {e}", "warning")
 
+# ─── BTC MARKET FILTER ────────────────────────────────────────────────────────
+def btc_is_dumping():
+    """Return True if BTC has dropped more than 3% in the last hour."""
+    try:
+        candles = pub("/api/v3/klines", params={"symbol":"BTCUSDT","interval":"1h","limit":2})
+        if not candles or len(candles) < 2:
+            return False
+        open_price  = float(candles[-1][1])
+        close_price = float(candles[-1][4])
+        change_pct  = (close_price - open_price) / open_price * 100
+        if change_pct < -3:
+            addlog(f"⚠️ BTC down {change_pct:.1f}% in last hour — pausing new buys", "warning")
+            return True
+        return False
+    except:
+        return False
+
 # ─── MAIN SCAN LOOP ───────────────────────────────────────────────────────────
 def scan_loop():
     load_exchange_info()
@@ -471,7 +488,7 @@ def scan_loop():
                 check_stops()
 
             # Only scan for new signals if under max positions
-            if len(state["open_trades"]) < CFG["max_positions"]:
+            if len(state["open_trades"]) < CFG["max_positions"] and not btc_is_dumping():
                 balance = get_balance()
                 if balance is None:
                     addlog("Skipping scan — balance unavailable", "warning")

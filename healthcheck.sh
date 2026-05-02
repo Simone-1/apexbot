@@ -40,7 +40,7 @@ fi
 
 echo ""
 echo "[ Bot Scanning ]"
-LAST_SCAN=$(grep "Scan #" /root/apexbot/nohup.out 2>/dev/null | tail -1)
+LAST_SCAN=$(journalctl -u apexbot --no-pager -n 100 2>/dev/null | grep "Scan #" | tail -1)
 if [ -z "$LAST_SCAN" ]; then
     warn "No scan log found"
 else
@@ -89,9 +89,7 @@ else
     ok "scanner service running (PID $(systemctl show -p MainPID --value apexbot-scanner))"
 fi
 
-echo ""
-echo "[ Screen Sessions ]"
-screen -ls
+
 
 echo ""
 echo "=========================="

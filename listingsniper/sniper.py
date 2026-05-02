@@ -2,6 +2,15 @@ import os, json, time, re, requests, logging, tempfile
 from datetime import datetime, timezone
 from threading import Thread
 
+def telegram(msg):
+    try:
+        env = open("/etc/environment").read()
+        token = env.split("TELEGRAM_TOKEN=")[1].split("\n")[0]
+        chat_id = env.split("TELEGRAM_CHAT_ID=")[1].split("\n")[0]
+        requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": msg}, timeout=5)
+    except: pass
+
 PAPER_MODE=True; TRADE_USD=30; TAKE_PROFIT_PCT=0.50; STOP_LOSS_PCT=0.08
 TIME_EXIT_MINS=60; POLL_INTERVAL=300; PRICE_CHECK_SECS=10
 STATE_FILE="/root/listingsniper/state.json"
@@ -90,6 +99,7 @@ def close_trade(symbol, entry, exit_price, reason, pct):
     trade={"symbol":symbol,"entry":entry,"exit":exit_price,"pct":round(pct,2),"pnl":round(pnl,2),"reason":reason,"paper":PAPER_MODE,"closed":datetime.now(timezone.utc).isoformat()}
     state["trades"].insert(0,trade); state["open_trade"]=None
     emoji="✅" if pnl>0 else "❌"
+    telegram(f"{emoji} ListingSniper: {'PAPER ' if PAPER_MODE else ''}Closed {symbol} | {reason} | {pct:+.1f}% | PnL: ${pnl:+.2f}")
     addlog(f"{emoji} {'PAPER ' if PAPER_MODE else ''}CLOSED {symbol} @ ${exit_price:.6f} ({pct:+.1f}%) | PnL: ${pnl:+.2f} | Total: ${state['total_pnl']:+.2f} | Reason: {reason}")
 
 def wait_and_trade(symbol, article_id):
@@ -101,6 +111,7 @@ def wait_and_trade(symbol, article_id):
             price=get_price(symbol)
             if price and price>0:
                 addlog(f"🚀 {symbol} is now trading at ${price:.6f} — entering position")
+                telegram(f"🚀 ListingSniper: {'PAPER ' if PAPER_MODE else ''}Entered {symbol} @ ${price:.6f}\nTP: ${price*(1+TAKE_PROFIT_PCT):.6f} | SL: ${price*(1-STOP_LOSS_PCT):.6f}")
                 state["pending"] = [p for p in state["pending"] if p["symbol"] != symbol]
                 monitor_trade(symbol,price,article_id); return
         time.sleep(5)
@@ -127,6 +138,7 @@ def scan_loop():
             symbol=extract_symbol(title)
             if not symbol: addlog(f"Could not extract symbol from: {title}","warning"); continue
             addlog(f"🔔 New listing detected: {title}")
+            telegram(f"🔔 ListingSniper: New listing detected\n{title}\nWaiting for trading to open...")
             addlog(f"   Symbol: {symbol} — waiting for trading to open...")
             state["pending"].append({"symbol": symbol, "title": title, "detected": datetime.now(timezone.utc).isoformat()})
             save_state()

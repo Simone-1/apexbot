@@ -4,7 +4,7 @@ from threading import Thread
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 CFG = {
-    "min_trade_usd":   10,       # Minimum trade size in USDT
+    "min_trade_usd":   20,       # Minimum trade size in USDT
     "max_trade_usd":   20,       # Maximum trade size in USDT
     "max_positions":   8,        # Max concurrent open trades
     "take_profit":     0.025,    # 2.5% take profit

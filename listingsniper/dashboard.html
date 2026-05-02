@@ -5,104 +5,182 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ListingSniper</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
-  :root{--bg:#0a0a0f;--panel:#111118;--border:#1e1e2e;--accent:#00ff88;--red:#ff3366;--yellow:#ffcc00;--text:#e0e0ff;--muted:#555577;--mono:'Space Mono',monospace;--sans:'Syne',sans-serif;}
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
-  .header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#0a0a0f 0%,#111125 100%);}
-  .logo{font-size:1.4rem;font-weight:800;letter-spacing:-0.5px;}
-  .logo span{color:var(--accent);}
-  .paper-badge{background:var(--yellow);color:#000;font-family:var(--mono);font-size:.7rem;font-weight:700;padding:4px 12px;border-radius:2px;letter-spacing:2px;animation:pulse 2s infinite;}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.7}}
-  .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;border-bottom:1px solid var(--border);background:var(--border);}
-  .metric{background:var(--panel);padding:20px 24px;}
-  .metric-label{font-size:.7rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
-  .metric-value{font-family:var(--mono);font-size:1.6rem;font-weight:700;}
-  .green{color:var(--accent);} .red{color:var(--red);} .yellow{color:var(--yellow);}
-  .open-trade{margin:24px 28px;padding:20px;border:1px solid var(--accent);border-radius:4px;background:rgba(0,255,136,0.04);display:none;}
-  .open-trade.visible{display:block;}
-  .open-trade-title{font-size:.7rem;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;}
-  .open-trade-info{font-family:var(--mono);font-size:.9rem;display:flex;gap:32px;flex-wrap:wrap;}
-  .open-trade-info span{color:var(--muted);font-size:.75rem;display:block;margin-bottom:2px;}
-  .section{padding:0 28px 28px;}
-  .section-title{font-size:.7rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;padding:20px 0 12px;border-bottom:1px solid var(--border);}
-  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.8rem;}
-  th{text-align:left;padding:10px 12px;color:var(--muted);font-size:.68rem;letter-spacing:1px;border-bottom:1px solid var(--border);}
-  td{padding:12px 12px;border-bottom:1px solid rgba(30,30,46,0.5);}
-  tr:hover td{background:rgba(255,255,255,0.02);}
-  .badge{display:inline-block;padding:2px 8px;border-radius:2px;font-size:.68rem;font-weight:700;letter-spacing:1px;}
-  .badge-tp{background:rgba(0,255,136,0.15);color:var(--accent);}
-  .badge-sl{background:rgba(255,51,102,0.15);color:var(--red);}
-  .badge-time{background:rgba(85,85,119,0.3);color:var(--muted);}
-  .badge-paper{background:rgba(255,204,0,0.15);color:var(--yellow);}
-  .logs{background:#08080d;border:1px solid var(--border);border-radius:4px;padding:16px;height:300px;overflow-y:auto;font-family:var(--mono);font-size:.75rem;line-height:1.6;margin-top:16px;}
-  .log-time{color:var(--muted);margin-right:8px;}
-  .log-info{color:var(--text);} .log-warning{color:var(--yellow);} .log-error{color:var(--red);}
-  .empty{color:var(--muted);font-family:var(--mono);font-size:.8rem;padding:20px 0;}
-  .status-bar{padding:8px 28px;background:var(--panel);border-bottom:1px solid var(--border);font-family:var(--mono);font-size:.72rem;color:var(--muted);display:flex;gap:24px;}
-  .status-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:6px;animation:blink 1.5s infinite;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0d0f14;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+  .header{background:#161b27;border-bottom:1px solid #2d3748;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  .logo{font-size:1.4rem;font-weight:700;color:#63b3ed;letter-spacing:1px}
+  .status-pill{padding:6px 16px;border-radius:999px;font-size:.8rem;font-weight:600;letter-spacing:.5px}
+  .status-pill.running{background:#22543d;color:#68d391}
+  .status-pill.stopped{background:#742a2a;color:#fc8181}
+  .paper-pill{background:#744210;color:#f6e05e;padding:6px 16px;border-radius:999px;font-size:.8rem;font-weight:600;letter-spacing:.5px}
+  .controls{display:flex;gap:10px}
+  button{padding:8px 20px;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;transition:opacity .2s}
+  button:hover{opacity:.85}
+  .btn-start{background:#38a169;color:#fff}
+  .btn-stop{background:#e53e3e;color:#fff}
+  .btn-link{background:#2d3748;color:#a0aec0;text-decoration:none;padding:8px 20px;border-radius:8px;font-size:.85rem;font-weight:600}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:20px 24px}
+  .card{background:#161b27;border:1px solid #2d3748;border-radius:12px;padding:16px}
+  .card-label{font-size:.72rem;color:#718096;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+  .card-value{font-size:1.4rem;font-weight:700}
+  .green{color:#68d391}.red{color:#fc8181}.blue{color:#63b3ed}.yellow{color:#f6e05e}
+  .section{padding:0 24px 20px}
+  .section-title{font-size:.85rem;font-weight:600;color:#e2e8f0;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+  .section-sub{font-size:.75rem;color:#718096;margin-bottom:12px}
+  .active-trade{background:#161b27;border:1px solid #38a169;border-radius:12px;padding:16px;margin:0 24px 20px}
+  .active-trade-title{font-size:.8rem;font-weight:600;color:#68d391;text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+  .active-trade-sub{font-size:.75rem;color:#718096;margin-bottom:12px}
+  .active-trade-info{display:flex;gap:24px;flex-wrap:wrap;font-size:.85rem}
+  .active-trade-info div span{display:block;font-size:.7rem;color:#718096;margin-bottom:2px}
+  table{width:100%;border-collapse:collapse;font-size:.82rem}
+  th{text-align:left;padding:8px 12px;color:#718096;border-bottom:1px solid #2d3748;font-weight:500}
+  td{padding:8px 12px;border-bottom:1px solid #1a202c}
+  tr:hover td{background:#1a202c}
+  .badge{padding:2px 8px;border-radius:4px;font-size:.72rem;font-weight:600}
+  .badge-tp{background:#22543d;color:#68d391}
+  .badge-sl{background:#742a2a;color:#fc8181}
+  .badge-time{background:#2d3748;color:#718096}
+  .badge-paper{background:#744210;color:#f6e05e}
+  .logs{background:#0a0c10;border:1px solid #2d3748;border-radius:12px;padding:16px;max-height:320px;overflow-y:auto;font-family:'JetBrains Mono','Courier New',monospace;font-size:.75rem}
+  .log-info{color:#a0aec0}.log-warning{color:#f6e05e}.log-error{color:#fc8181}
+  .log-time{color:#4a5568;margin-right:8px}
+  .empty{color:#4a5568;font-style:italic;padding:12px 0}
+  .pending-item{padding:10px 0;border-bottom:1px solid #1a202c;display:flex;align-items:center;gap:12px;font-size:.82rem}
+  .pending-symbol{color:#f6e05e;font-weight:700;min-width:80px}
+  .pending-title{color:#718096;flex:1}
+  .pending-time{color:#4a5568;font-size:.72rem;white-space:nowrap}
+  .status-bar{background:#0d0f14;border-bottom:1px solid #1a202c;padding:8px 24px;display:flex;gap:24px;font-size:.72rem;color:#4a5568}
+  .status-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#68d391;margin-right:6px;animation:blink 1.5s infinite}
   @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
-  @media(max-width:600px){.metrics{grid-template-columns:1fr 1fr;}}
+  .tip{position:relative;cursor:help}
+  .tip::after{content:attr(data-tip);position:absolute;bottom:130%;left:50%;transform:translateX(-50%);background:#1a202c;color:#e2e8f0;padding:6px 10px;border-radius:6px;font-size:.72rem;white-space:nowrap;border:1px solid #2d3748;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99}
+  .tip:hover::after{opacity:1}
+  @media(max-width:600px){.metrics{grid-template-columns:1fr 1fr}.active-trade-info{flex-direction:column;gap:8px}}
 </style>
 </head>
 <body>
+
 <div class="header">
-  <div class="logo">🎯 Listing<span>Sniper</span></div>
-  <div class="paper-badge">PAPER MODE</div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="logo">🎯 ListingSniper</div>
+    <div id="status-pill" class="status-pill stopped">STOPPED</div>
+    <div class="paper-pill">PAPER MODE</div>
+  </div>
+  <div class="controls">
+    <a href="http://165.232.101.183:8080" class="btn-link">← ApexBot</a>
+    <button class="btn-start" onclick="ctrlBot('start')">▶ Start</button>
+    <button class="btn-stop" onclick="ctrlBot('stop')">■ Stop</button>
+  </div>
 </div>
+
 <div class="status-bar">
   <div><span class="status-dot"></span><span id="status-text">Connecting...</span></div>
-  <div>Scans: <span id="scan-count">—</span></div>
+  <div class="tip" data-tip="Number of times the bot has checked Binance for new announcements">Scans: <span id="scan-count">—</span></div>
+  <div class="tip" data-tip="Bot checks for new listings every 5 minutes">Next scan in: <span id="next-scan">—</span></div>
   <div>Last update: <span id="last-update">—</span></div>
 </div>
+
 <div class="metrics">
-  <div class="metric"><div class="metric-label">Simulated P&L</div><div class="metric-value" id="m-pnl">—</div></div>
-  <div class="metric"><div class="metric-label">Total Trades</div><div class="metric-value" id="m-trades">—</div></div>
-  <div class="metric"><div class="metric-label">Win Rate</div><div class="metric-value" id="m-winrate">—</div></div>
-  <div class="metric"><div class="metric-label">Trade Size</div><div class="metric-value yellow">$30</div></div>
+  <div class="card tip" data-tip="Total profit or loss across all paper trades. Not real money."><div class="card-label">Simulated P&L</div><div class="card-value" id="m-pnl">—</div></div>
+  <div class="card tip" data-tip="Number of completed paper trades since the bot started."><div class="card-label">Total Trades</div><div class="card-value blue" id="m-trades">—</div></div>
+  <div class="card tip" data-tip="Percentage of trades that hit the take profit target."><div class="card-label">Win Rate</div><div class="card-value" id="m-winrate">—</div></div>
+  <div class="card tip" data-tip="Simulated amount spent per trade. Will be real money when you go live."><div class="card-label">Trade Size</div><div class="card-value yellow">$30</div></div>
+  <div class="card tip" data-tip="Bot sells when price rises 50% from entry. On a $30 trade that is +$15."><div class="card-label">Take Profit</div><div class="card-value green">+50%</div></div>
+  <div class="card tip" data-tip="Bot sells if price drops 8% from entry to limit losses. On a $30 trade that is -$2.40."><div class="card-label">Stop Loss</div><div class="card-value red">-8%</div></div>
 </div>
-<div class="open-trade" id="open-trade">
-  <div class="open-trade-title">⚡ Active Paper Trade</div>
-  <div class="open-trade-info" id="open-trade-info"></div>
+
+<div id="active-trade-section" style="display:none;">
+  <div class="active-trade">
+    <div class="active-trade-title">⚡ Active Paper Trade</div>
+    <div class="active-trade-sub">Bot entered when trading opened. Monitoring every 5 seconds for +50% TP or -8% SL.</div>
+    <div class="active-trade-info" id="active-trade-info"></div>
+  </div>
 </div>
+
 <div class="section">
-  <div class="section-title">Trade History (Simulated)</div>
+  <div class="section-title"><span class="tip" data-tip="Binance announced these coins. Bot is watching and will buy the moment trading opens.">⏳ Pending Listings</span></div>
+  <div class="section-sub">Announcements detected — bot is waiting for these coins to start trading</div>
+  <div id="pending-box"><div class="empty">No announcements detected yet — monitoring every 5 minutes...</div></div>
+</div>
+
+<div class="section">
+  <div class="section-title"><span class="tip" data-tip="Completed paper trades. No real money was used.">📋 Trade History (Simulated)</span></div>
+  <div class="section-sub">What you would have made if this were real money</div>
   <table>
-    <thead><tr><th>Coin</th><th>Entry</th><th>Exit</th><th>Change</th><th>P&L (Simulated)</th><th>Reason</th><th>Closed</th></tr></thead>
+    <thead><tr><th class="tip" data-tip="The coin that was listed">Coin</th><th class="tip" data-tip="Price when the bot bought">Entry</th><th class="tip" data-tip="Price when the bot sold">Exit</th><th class="tip" data-tip="Percentage change from entry to exit">Change</th><th class="tip" data-tip="Simulated profit or loss on a $30 trade">P&L (Simulated)</th><th class="tip" data-tip="TP = hit profit target, SL = hit stop loss, TimeExit = 1 hour time limit">Reason</th><th class="tip" data-tip="When the trade was closed">Closed</th></tr></thead>
     <tbody id="trade-body"><tr><td colspan="7" class="empty">Waiting for first listing...</td></tr></tbody>
   </table>
 </div>
+
 <div class="section">
-  <div class="section-title">Live Log</div>
+  <div class="section-title"><span class="tip" data-tip="Real-time activity log.">📡 Live Log</span></div>
+  <div class="section-sub">Everything the bot is doing in real time</div>
   <div class="logs" id="log-box"><div class="empty">Waiting for activity...</div></div>
 </div>
+
 <script>
+let lastScanCount = 0;
+let nextScanTime = null;
+
+async function ctrlBot(cmd) {
+  await fetch('/ctrl?cmd=' + cmd, {method:'POST'});
+  setTimeout(refresh, 500);
+}
+
 async function refresh() {
   try {
     const res = await fetch('/state');
     const d = await res.json();
-    document.getElementById('status-text').textContent = d.running ? 'Running — monitoring Binance announcements' : 'Stopped';
+
+    const pill = document.getElementById('status-pill');
+    pill.textContent = d.running ? 'RUNNING' : 'STOPPED';
+    pill.className = 'status-pill ' + (d.running ? 'running' : 'stopped');
+    document.getElementById('status-text').textContent = d.running ? 'Running — monitoring Binance announcements every 5 mins' : 'Stopped';
     document.getElementById('scan-count').textContent = d.scan_count || 0;
     document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+
+    if (d.scan_count !== lastScanCount) { nextScanTime = Date.now() + 300000; lastScanCount = d.scan_count; }
+    if (nextScanTime) {
+      const secs = Math.max(0, Math.round((nextScanTime - Date.now()) / 1000));
+      document.getElementById('next-scan').textContent = secs + 's';
+    }
+
     const pnl = d.total_pnl || 0;
     const pnlEl = document.getElementById('m-pnl');
     pnlEl.textContent = '$' + (pnl >= 0 ? '+' : '') + pnl.toFixed(2);
-    pnlEl.className = 'metric-value ' + (pnl >= 0 ? 'green' : 'red');
+    pnlEl.className = 'card-value ' + (pnl >= 0 ? 'green' : 'red');
+
     const trades = d.trades || [];
     document.getElementById('m-trades').textContent = trades.length;
     const wins = trades.filter(t => t.pnl > 0).length;
-    document.getElementById('m-winrate').textContent = trades.length > 0 ? Math.round(wins/trades.length*100) + '%' : '—';
-    const openTrade = d.open_trade;
-    const openEl = document.getElementById('open-trade');
-    if (openTrade) {
-      openEl.classList.add('visible');
-      document.getElementById('open-trade-info').innerHTML =
-        '<div><span>Symbol</span>' + openTrade.symbol + '</div>' +
-        '<div><span>Entry</span>$' + parseFloat(openTrade.entry).toFixed(6) + '</div>' +
-        '<div><span>Take Profit</span>$' + parseFloat(openTrade.tp).toFixed(6) + '</div>' +
-        '<div><span>Stop Loss</span>$' + parseFloat(openTrade.sl).toFixed(6) + '</div>' +
-        '<div><span>Opened</span>' + new Date(openTrade.open_time).toLocaleTimeString() + '</div>';
-    } else { openEl.classList.remove('visible'); }
+    const wr = document.getElementById('m-winrate');
+    wr.textContent = trades.length > 0 ? Math.round(wins/trades.length*100) + '%' : '—';
+    wr.className = 'card-value ' + (trades.length > 0 ? (wins/trades.length >= 0.5 ? 'green' : 'red') : '');
+
+    const ot = d.open_trade;
+    const ats = document.getElementById('active-trade-section');
+    if (ot) {
+      ats.style.display = 'block';
+      const pct = ot.entry ? ((parseFloat(ot.tp) - parseFloat(ot.entry)) / parseFloat(ot.entry) * 100).toFixed(0) : '—';
+      document.getElementById('active-trade-info').innerHTML =
+        '<div><span>Symbol</span>' + ot.symbol + '</div>' +
+        '<div class="tip" data-tip="Price the bot paid when trading opened"><span>Entry Price</span>$' + parseFloat(ot.entry).toFixed(6) + '</div>' +
+        '<div><span>Take Profit (+50%)</span><span style="color:#68d391">$' + parseFloat(ot.tp).toFixed(6) + '</span></div>' +
+        '<div><span>Stop Loss (-8%)</span><span style="color:#fc8181">$' + parseFloat(ot.sl).toFixed(6) + '</span></div>' +
+        '<div class="tip" data-tip="Time the bot entered this position"><span>Opened</span>' + new Date(ot.open_time).toLocaleTimeString() + '</div>';
+    } else { ats.style.display = 'none'; }
+
+    const pending = d.pending || [];
+    const pb = document.getElementById('pending-box');
+    if (pending.length === 0) {
+      pb.innerHTML = '<div class="empty">No announcements detected yet — monitoring every 5 minutes...</div>';
+    } else {
+      pb.innerHTML = pending.map(p => {
+        const t = new Date(p.detected).toLocaleTimeString();
+        return '<div class="pending-item"><span class="pending-symbol">' + p.symbol.replace('USDT','') + '</span><span class="pending-title">' + p.title + '</span><span class="pending-time">Detected ' + t + '</span></div>';
+      }).join('');
+    }
+
     const tbody = document.getElementById('trade-body');
     if (trades.length === 0) {
       tbody.innerHTML = '<tr><td colspan="7" class="empty">Waiting for first listing...</td></tr>';
@@ -111,15 +189,18 @@ async function refresh() {
         const bc = t.reason==='TP'?'badge-tp':t.reason==='SL'?'badge-sl':'badge-time';
         const pc = t.pnl>=0?'green':'red';
         const cl = new Date(t.closed).toLocaleDateString()+' '+new Date(t.closed).toLocaleTimeString();
-        return '<tr><td>'+t.symbol.replace('USDT','')+'</td><td>$'+parseFloat(t.entry).toFixed(6)+'</td><td>$'+parseFloat(t.exit).toFixed(6)+'</td><td class="'+pc+'">'+(t.pct>=0?'+':'')+t.pct.toFixed(1)+'%</td><td class="'+pc+'">'+(t.pnl>=0?'+':'')+'$'+t.pnl.toFixed(2)+'</td><td><span class="badge '+bc+'">'+t.reason+'</span> <span class="badge badge-paper">PAPER</span></td><td>'+cl+'</td></tr>';
+        return '<tr><td><strong>' + t.symbol.replace('USDT','') + '</strong></td><td>$' + parseFloat(t.entry).toFixed(6) + '</td><td>$' + parseFloat(t.exit).toFixed(6) + '</td><td class="' + pc + '">' + (t.pct>=0?'+':'') + t.pct.toFixed(1) + '%</td><td class="' + pc + '">' + (t.pnl>=0?'+':'') + '$' + t.pnl.toFixed(2) + '</td><td><span class="badge ' + bc + '">' + t.reason + '</span> <span class="badge badge-paper">PAPER</span></td><td>' + cl + '</td></tr>';
       }).join('');
     }
+
     const logs = d.logs || [];
-    const logBox = document.getElementById('log-box');
-    if (logs.length === 0) { logBox.innerHTML = '<div class="empty">Waiting for activity...</div>'; }
-    else { logBox.innerHTML = logs.map(l => '<div class="log-'+l.level+'"><span class="log-time">'+l.time+'</span>'+l.msg+'</div>').join(''); }
+    const lb = document.getElementById('log-box');
+    lb.innerHTML = logs.length === 0 ? '<div class="empty">Waiting for activity...</div>' :
+      logs.map(l => '<div class="log-' + l.level + '"><span class="log-time">' + l.time + '</span>' + l.msg + '</div>').join('');
+
   } catch(e) { document.getElementById('status-text').textContent = 'Connection error'; }
 }
+
 refresh();
 setInterval(refresh, 3000);
 </script>

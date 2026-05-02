@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from threading import Thread
 
 PAPER_MODE=True; TRADE_USD=30; TAKE_PROFIT_PCT=0.50; STOP_LOSS_PCT=0.08
-TIME_EXIT_MINS=120; POLL_INTERVAL=300; PRICE_CHECK_SECS=10
+TIME_EXIT_MINS=60; POLL_INTERVAL=300; PRICE_CHECK_SECS=10
 STATE_FILE="/root/listingsniper/state.json"
 BASE="https://api.binance.com"
 ANNOUNCE_URL="https://www.binance.com/bapi/composite/v1/public/cms/article/list/query"
@@ -101,6 +101,7 @@ def wait_and_trade(symbol, article_id):
             price=get_price(symbol)
             if price and price>0:
                 addlog(f"🚀 {symbol} is now trading at ${price:.6f} — entering position")
+                state["pending"] = [p for p in state["pending"] if p["symbol"] != symbol]
                 monitor_trade(symbol,price,article_id); return
         time.sleep(5)
     addlog(f"⏰ {symbol} never started trading within 24h — skipping","warning")
@@ -127,6 +128,8 @@ def scan_loop():
             if not symbol: addlog(f"Could not extract symbol from: {title}","warning"); continue
             addlog(f"🔔 New listing detected: {title}")
             addlog(f"   Symbol: {symbol} — waiting for trading to open...")
+            state["pending"].append({"symbol": symbol, "title": title, "detected": datetime.now(timezone.utc).isoformat()})
+            save_state()
             Thread(target=wait_and_trade,args=(symbol,article_id),daemon=True).start()
         save_state()
         time.sleep(POLL_INTERVAL)

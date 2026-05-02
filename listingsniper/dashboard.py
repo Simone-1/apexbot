@@ -21,6 +21,16 @@ class Handler(BaseHTTPRequestHandler):
                 with open(STATE_FILE) as f: data=json.load(f)
             except: data={"running":False,"error":"State file not found"}
             self.send_json(data)
+        elif path=="/ctrl":
+            from urllib.parse import parse_qs, urlparse
+            cmd = parse_qs(urlparse(self.path).query).get("cmd",[""])[0]
+            try:
+                with open(STATE_FILE) as f: data=json.load(f)
+                if cmd=="start": data["running"]=True
+                elif cmd=="stop": data["running"]=False
+                with open(STATE_FILE,"w") as f: json.dump(data,f,indent=2)
+            except: pass
+            self.send_json({"ok":True})
         else: self.send_response(404); self.end_headers()
 
 if __name__=="__main__":

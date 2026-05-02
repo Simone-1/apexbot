@@ -66,7 +66,7 @@ def get_announcements():
         r=requests.get(ANNOUNCE_URL,params={"type":1,"pageNo":1,"pageSize":20,"catalogId":48},headers=headers,timeout=10)
         if r.status_code!=200: return []
         return r.json()["data"]["catalogs"][0]["articles"]
-    except Exception as e: log.error(f"Failed to fetch announcements: {e}"); return []
+    except Exception as e: log.error(f"Failed to fetch announcements: {e}"); telegram(f"⚠️ ListingSniper: Failed to fetch announcements\n{e}"); return []
 
 def extract_symbol(title):
     match=re.search(r'\(([A-Z0-9]{2,10})\)',title)
@@ -121,6 +121,7 @@ def scan_loop():
     load_state()
     mode="PAPER TRADING" if PAPER_MODE else "LIVE TRADING"
     addlog(f"🎯 ListingSniper started — {mode} MODE")
+    telegram(f"🎯 ListingSniper started — {mode}\nTrade: ${TRADE_USD} | TP: +{TAKE_PROFIT_PCT*100:.0f}% | SL: -{STOP_LOSS_PCT*100:.0f}% | Exit: {TIME_EXIT_MINS}mins")
     addlog(f"Settings: Trade ${TRADE_USD} | TP +{TAKE_PROFIT_PCT*100:.0f}% | SL -{STOP_LOSS_PCT*100:.0f}% | Exit after {TIME_EXIT_MINS}mins")
     while state["running"]:
         state["scan_count"]+=1
@@ -147,4 +148,8 @@ def scan_loop():
         time.sleep(POLL_INTERVAL)
 
 if __name__=="__main__":
-    scan_loop()
+    try:
+        scan_loop()
+    except Exception as e:
+        telegram(f"🔴 ListingSniper crashed: {e}")
+        raise

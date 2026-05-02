@@ -83,7 +83,7 @@ HTML = """<!DOCTYPE html>
   <div class="config-tag tip" data-tip="Sells half your position when price rises 2.5% from entry">🎯 Take Profit <span>2.5%</span></div>
   <div class="config-tag tip" data-tip="Closes the full position if price drops 2% from entry to limit losses">🛑 Stop Loss <span>2.0%</span></div>
   <div class="config-tag tip" data-tip="Follows price upward and sells if price drops 1.5% from its peak">📉 Trailing Stop <span>1.5%</span></div>
-  <div class="config-tag tip" data-tip="Amount spent per trade, sized at 8% of available balance">💰 Trade Size <span>$10–$20</span></div>
+  <div class="config-tag tip" data-tip="Amount spent per trade, sized at 8% of available balance">💰 Trade Size <span>$20</span></div>
   <div class="config-tag tip" data-tip="Maximum number of trades open at the same time">📊 Max Positions <span>8</span></div>
   <div class="config-tag tip" data-tip="Minimum score a coin must reach before the bot buys. Score is based on price momentum, volume and time of day">🔍 Min Signal <span>50</span></div>
 </div>

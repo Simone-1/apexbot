@@ -2,6 +2,26 @@ import os, time, hmac, hashlib, requests, json, logging
 from datetime import datetime, timezone
 from threading import Thread
 
+
+# ─── TELEGRAM ALERTS ──────────────────────────────────────────────────────────
+def telegram(msg):
+    try:
+        token = os.environ.get("TELEGRAM_TOKEN","")
+        chat_id = os.environ.get("TELEGRAM_CHAT_ID","")
+        if not token or not chat_id:
+            # fallback to /etc/environment
+            env = open("/etc/environment").read()
+            if not token:
+                token = env.split("TELEGRAM_TOKEN=")[1].split("\n")[0]
+            if not chat_id:
+                chat_id = env.split("TELEGRAM_CHAT_ID=")[1].split("\n")[0]
+        requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": msg},
+            timeout=5
+        )
+    except:
+        pass
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 CFG = {
     "min_trade_usd":   20,       # Minimum trade size in USDT
@@ -284,6 +304,7 @@ def buy(symbol, price):
             "open_time":   datetime.now().strftime("%H:%M %d/%m"),
         }
         state["open_trades"][tid] = trade
+        telegram(f"📈 BUY {symbol} @ {price:.6f} | ${trade_usd}")
         addlog(f"✅ BOUGHT {symbol} @ {price:.6f} | Size:${trade_usd} | TP:{tp:.6f} | SL:{sl:.6f}")
         save()
 
@@ -346,6 +367,7 @@ def _close_record(trade, price, pnl, reason):
         del state["open_trades"][trade["id"]]
 
     emoji = "🟢" if pnl >= 0 else "🔴"
+    telegram(f"{emoji} {reason} {trade['symbol']} | PnL: {'+' if pnl>=0 else ''}{pnl:.2f}")
     addlog(f"{emoji} {reason} {trade['symbol']} @ {price:.6f} | PnL: {'+' if pnl>=0 else ''}{pnl:.2f} | Day: {'+' if state['daily_pnl']>=0 else ''}{state['daily_pnl']:.2f} | Total: {'+' if state['total_pnl']>=0 else ''}{state['total_pnl']:.2f}")
     save()
 
@@ -476,6 +498,7 @@ def start():
         state["running"] = True
         Thread(target=scan_loop, daemon=True).start()
         addlog("Bot thread started")
+        telegram("🚀 ApexBot started")
 
 def stop():
     state["running"] = False

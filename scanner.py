@@ -23,6 +23,27 @@ def pub(path, params=None):
         log.error(f"API error {path}: {e}")
         return None
 
+def is_permitted(symbol):
+    """Test if a symbol is tradeable on this account."""
+    try:
+        key = os.environ.get('BINANCE_API_KEY','')
+        secret = os.environ.get('BINANCE_API_SECRET','')
+        if not key:
+            env = open('/etc/environment').read()
+            key = env.split('BINANCE_API_KEY=')[1].split('\n')[0]
+            secret = env.split('BINANCE_API_SECRET=')[1].split('\n')[0]
+        params = {'symbol': symbol, 'side': 'BUY', 'type': 'MARKET',
+                  'quoteOrderQty': 0, 'timestamp': int(time.time()*1000)}
+        qs = '&'.join(f'{k}={v}' for k,v in params.items())
+        params['signature'] = hmac.new(secret.encode(), qs.encode(), hashlib.sha256).hexdigest()
+        r = requests.post(
+            'https://api.binance.com/api/v3/order/test',
+            params=params, headers={'X-MBX-APIKEY': key}, timeout=10
+        )
+        return r.json().get('code') != -2010
+    except:
+        return True  # assume permitted if check fails
+
 def load_state():
     if os.path.exists(STATE_FILE):
         try:
@@ -116,7 +137,17 @@ def run_scan():
         if sym in protected:
             keep.append(sym)
             drop.remove(sym)
-    new_entrants = [s for s in ranked if s not in set(keep)][:(n-len(keep))]
+    # Filter new entrants — only add coins permitted on this account
+    all_entrants = [s for s in ranked if s not in set(keep)]
+    new_entrants = []
+    for sym in all_entrants:
+        if len(new_entrants) >= (n - len(keep)):
+            break
+        if is_permitted(sym):
+            new_entrants.append(sym)
+        else:
+            log.warning(f"Skipping {sym} — not permitted on this account")
+            time.sleep(0.1)
     new_coins = list(dict.fromkeys(keep+new_entrants))
     dropped = [s for s in current_coins if s not in new_coins]
     added   = [s for s in new_coins if s not in current_coins]

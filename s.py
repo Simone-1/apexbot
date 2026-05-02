@@ -312,7 +312,10 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
 
 if __name__ == "__main__":
-    from bot import load
+    from bot import load, start
     load()
+    if state.get("running"):
+        start()
+        print("Auto-started bot (was running before restart)")
     print("ApexBot V3 dashboard → http://0.0.0.0:8080")
     HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()

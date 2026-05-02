@@ -95,8 +95,15 @@ def round_step(qty, step):
 # ─── PERSISTENCE ──────────────────────────────────────────────────────────────
 def save():
     try:
+        # Preserve keys written by other processes (e.g. scanner.py)
+        try:
+            with open("state.json") as f:
+                existing = json.load(f)
+        except:
+            existing = {}
+        data = {**existing, **state}
         with open("state.json", "w") as f:
-            json.dump(state, f, default=str)
+            json.dump(data, f, default=str)
     except Exception as e:
         log.error(f"Save failed: {e}")
 
@@ -123,6 +130,7 @@ def addlog(msg, level="info"):
     }
     state["logs"] = [entry] + state["logs"][:299]
     getattr(log, level if level in ("info", "warning", "error") else "info")(msg)
+    save()
 
 # ─── API HELPERS ──────────────────────────────────────────────────────────────
 def sign(params):

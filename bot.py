@@ -81,6 +81,7 @@ state = {
     "daily_pnl":     0.0,
     "last_day":      datetime.now(timezone.utc).strftime("%Y-%m-%d"),
     "last_buy_time": 0,  # timestamp of last buy — for cooldown
+    "symbol_cooldowns": {},  # per-symbol cooldown timestamps
     "market_mode":   "neutral",
     "btc_change_24h": 0.0,
     "btc_change_7d":  0.0,
@@ -360,6 +361,14 @@ BUY_COOLDOWN_SECS = 0  # 15 minutes between new position opens
 def buy(symbol, price, score=None):
     if symbol in BLOCKED_SYMBOLS:
         return
+    # Per-symbol cooldown — don't re-enter same coin for 60 mins after close
+    cooldowns = state.get("symbol_cooldowns", {})
+    if symbol in cooldowns:
+        elapsed = time.time() - cooldowns[symbol]
+        if elapsed < 3600:
+            remaining = int((3600 - elapsed) / 60)
+            addlog(f"Skipping {symbol} — symbol cooldown ({remaining}min remaining)", "warning")
+            return
     # Cooldown check — don't open positions too close together
     last_buy = state.get("last_buy_time", 0)
     if time.time() - last_buy < BUY_COOLDOWN_SECS:
@@ -467,6 +476,10 @@ def _close_record(trade, price, pnl, reason):
     pnl = round(pnl, 3)
     state["total_pnl"] = round(state.get("total_pnl", 0) + pnl, 3)
     state["daily_pnl"] = round(state.get("daily_pnl", 0) + pnl, 3)
+    # Per-symbol cooldown — block re-entry for 60 mins
+    cooldowns = state.get("symbol_cooldowns", {})
+    cooldowns[trade["symbol"]] = time.time()
+    state["symbol_cooldowns"] = cooldowns
     # Reset cooldown after a loss — don't buy again for 15 minutes
     if pnl < 0:
         state["last_buy_time"] = time.time()

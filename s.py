@@ -85,7 +85,17 @@ HTML = """<!DOCTYPE html>
   <div class="config-tag tip" data-tip="Follows price upward and sells if price drops 1.5% from its peak">📉 Trailing Stop <span>1.5%</span></div>
   <div class="config-tag tip" data-tip="Amount spent per trade, sized at 8% of available balance">💰 Trade Size <span>$20</span></div>
   <div class="config-tag tip" data-tip="Maximum number of trades open at the same time">📊 Max Positions <span>8</span></div>
-  <div class="config-tag tip" data-tip="Minimum score a coin must reach before the bot buys. Score is based on price momentum, volume and time of day">🔍 Min Signal <span>50</span></div>
+  <div class="config-tag tip" data-tip="Minimum score a coin must reach before the bot buys. Score is based on price momentum, volume and time of day">🔍 Min Signal <span>55</span></div>
+</div>
+
+<div style="padding:0 24px 16px">
+  <div id="bot-status-bar" style="background:#1a202c;border:1px solid #2d3748;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px">
+    <div id="bot-status-dot" style="width:10px;height:10px;border-radius:50%;background:#4a5568;flex-shrink:0"></div>
+    <div>
+      <div id="bot-status-msg" style="font-size:.85rem;color:#a0aec0">Loading...</div>
+      <div id="bot-status-sub" style="font-size:.72rem;color:#4a5568;margin-top:2px"></div>
+    </div>
+  </div>
 </div>
 
 <div class="section">
@@ -96,8 +106,8 @@ HTML = """<!DOCTYPE html>
 <div class="section">
   <div class="section-title">Open Positions</div>
   <table id="open-table">
-    <thead><tr><th>Coin</th><th>Entry</th><th>Current</th><th class="tip" data-tip="Profit/Loss as % and $ vs entry price">PnL%</th><th class="tip" data-tip="Take Profit — sells half your position at this price">TP</th><th class="tip" data-tip="Stop Loss — closes full position if price drops to here">SL</th><th class="tip" data-tip="Amount invested in this trade in USD">Size</th><th>Time</th></tr></thead>
-    <tbody id="open-body"><tr><td colspan="8" class="empty">No open positions</td></tr></tbody>
+    <thead><tr><th>Coin</th><th>Entry</th><th>Current</th><th class="tip" data-tip="Profit/Loss as % and $ vs entry price">PnL%</th><th class="tip" data-tip="Take Profit — sells half your position at this price">TP</th><th class="tip" data-tip="Peak price reached so far">High</th><th class="tip" data-tip="Second half closes if price drops here (1.5% below high)">Trail</th><th class="tip" data-tip="Stop Loss — closes full position if price drops to here">SL</th><th class="tip" data-tip="Amount invested in this trade in USD">Size</th><th>Time</th></tr></thead>
+    <tbody id="open-body"><tr><td colspan="10" class="empty">No open positions</td></tr></tbody>
   </table>
 </div>
 
@@ -177,7 +187,13 @@ async function refresh() {
     const coinsBar = document.getElementById('coins-bar');
     if (coinsBar) {
       const symbols = data.symbols || [];
-      coinsBar.innerHTML = symbols.map(s => `<span class="coin-tag">${s.replace('USDT','')}</span>`).join('');
+      const scores = data.coin_scores || {};
+      const minScore = 35;
+      coinsBar.innerHTML = symbols.map(s => {
+        const sc = scores[s] || 0;
+        const color = sc >= minScore ? '#68d391' : sc >= minScore * 0.7 ? '#f6e05e' : '#718096';
+        return '<span class="coin-tag" style="border-color:' + color + ';color:' + color + '" title="Score: ' + sc + '/' + minScore + '">' + s.replace('USDT','') + ' <span style="font-size:.65rem;opacity:.8">' + sc + '</span></span>';
+      }).join('');
     }
 
     const dp = data.daily_pnl || 0;
@@ -193,7 +209,7 @@ async function refresh() {
     const trades = Object.values(data.open_trades || {});
     const openBody = document.getElementById('open-body');
     if (trades.length === 0) {
-      openBody.innerHTML = '<tr><td colspan="8" class="empty">No open positions</td></tr>';
+      openBody.innerHTML = '<tr><td colspan="10" class="empty">No open positions</td></tr>';
     } else {
       const syms = trades.map(t => t.symbol);
       await fetchPrices(syms);
@@ -206,7 +222,9 @@ async function refresh() {
           <td>${parseFloat(t.entry_price).toPrecision(5)}</td>
           <td>${parseFloat(cur).toPrecision(5)}</td>
           <td class="${pnlClass(pct)}">${pnlStr(pct)}%<br><small>${pnlStr(pnlUsd)}</small></td>
-          <td class="green">${parseFloat(t.take_profit).toPrecision(5)}</td>
+          <td class="green">${t.partial ? '✓ done' : parseFloat(t.take_profit).toPrecision(5)}</td>
+          <td class="yellow">${t.high_price ? parseFloat(t.high_price).toPrecision(5) : '—'}</td>
+          <td class="yellow">${t.partial && t.high_price ? parseFloat(t.high_price * 0.985).toPrecision(5) : '—'}</td>
           <td class="red">${parseFloat(t.stop_loss).toPrecision(5)}</td>
           <td>$${t.usd_size}</td>
           <td>${t.open_time}</td>
@@ -231,6 +249,10 @@ async function refresh() {
       </tr>`).join('');
     }
 
+    // Update status bar
+    updateBotStatus(data);
+    updateMarketOverview(data);
+
     // Logs
     const logs   = data.logs || [];
     const logBox = document.getElementById('log-box');
@@ -244,6 +266,67 @@ async function refresh() {
 
   } catch(e) {
     console.error('Refresh error', e);
+  }
+}
+
+function updateBotStatus(data) {
+  var dot = document.getElementById('bot-status-dot');
+  var msg = document.getElementById('bot-status-msg');
+  var sub = document.getElementById('bot-status-sub');
+  if (!dot) return;
+
+  var running = data.running;
+  var balance = data.balance != null ? parseFloat(data.balance) : null;
+  var open = Object.keys(data.open_trades || {}).length;
+  var maxPos = 8;
+  var logs = data.logs || [];
+  var lastLog = logs.length > 0 ? logs[0].msg : '';
+
+  if (!running) {
+    dot.style.background = '#fc8181';
+    msg.style.color = '#fc8181';
+    msg.textContent = '⛔ Bot is stopped — not scanning or trading';
+    sub.textContent = 'Use the Start button to resume';
+    return;
+  }
+
+  // Parse last log to understand what happened
+  if (lastLog.includes('BTC down') || lastLog.includes('BTC filter')) {
+    dot.style.background = '#f6e05e';
+    msg.style.color = '#f6e05e';
+    msg.textContent = '⚠️ Paused — Bitcoin is dropping, waiting for stability';
+    sub.textContent = lastLog;
+  } else if (lastLog.includes('low balance') || (balance != null && balance < 20)) {
+    dot.style.background = '#f6e05e';
+    msg.style.color = '#f6e05e';
+    msg.textContent = '⚠️ Paused — balance too low to place a $20 trade';
+    sub.textContent = 'Balance: $' + (balance != null ? balance.toFixed(2) : '—');
+  } else if (open >= maxPos) {
+    dot.style.background = '#63b3ed';
+    msg.style.color = '#63b3ed';
+    msg.textContent = '📊 Max positions open (' + open + '/' + maxPos + ') — monitoring only, not buying';
+    sub.textContent = 'Will scan for new signals once a position closes';
+  } else if (lastLog.includes('no signals')) {
+    dot.style.background = '#68d391';
+    msg.style.color = '#68d391';
+    var mode = lastLog.includes('off-peak') ? 'off-peak hours' : 'peak hours';
+    msg.textContent = '✅ Ready — scanning every 30s during ' + mode + ', waiting for a coin to signal';
+    sub.textContent = 'No coin has scored 50+ yet this scan. ' + open + ' position' + (open !== 1 ? 's' : '') + ' open, $' + (balance != null ? balance.toFixed(2) : '—') + ' available';
+  } else if (lastLog.includes('BOUGHT') || lastLog.includes('Signal')) {
+    dot.style.background = '#68d391';
+    msg.style.color = '#68d391';
+    msg.textContent = '✅ Active — trading signals detected';
+    sub.textContent = lastLog;
+  } else if (lastLog.includes('Skipping scan')) {
+    dot.style.background = '#f6e05e';
+    msg.style.color = '#f6e05e';
+    msg.textContent = '⚠️ Skipping scans — ' + lastLog;
+    sub.textContent = '';
+  } else {
+    dot.style.background = '#68d391';
+    msg.style.color = '#68d391';
+    msg.textContent = '✅ Running — scanning for signals';
+    sub.textContent = lastLog;
   }
 }
 
@@ -309,7 +392,61 @@ function showBacktestResults(r) {
   html += '</div><div style="margin-top:8px;font-size:.72rem;color:#4a5568;">Last run: ' + new Date().toLocaleString() + '</div>';
   document.getElementById('bt-verdict').innerHTML = html;
 }
+
+// Market Overview
+async function updateMarketOverview(data) {
+  const scores = data.coin_scores || {};
+  const changes = data.coin_changes || {};
+  const volumes = data.coin_volumes || {};
+  const pva = data.coin_price_vs_avg || {};
+  const symbols = data.symbols || [];
+  const tbody = document.getElementById('market-body');
+  if (!tbody || symbols.length === 0) return;
+  const minScore = 35;
+  await fetchPrices(symbols);
+  const sorted = [...symbols].sort((a,b) => (changes[b]||0) - (changes[a]||0));
+  tbody.innerHTML = sorted.map(s => {
+    const sc = scores[s] || 0;
+    const pr = prices[s] || 0;
+    const ch = changes[s] || 0;
+    const vol = volumes[s] || 0;
+    const pvaVal = pva[s] || 0;
+    const scoreColor = sc >= minScore ? '#68d391' : sc >= minScore * 0.7 ? '#f6e05e' : '#718096';
+    const chColor = ch > 0 ? '#68d391' : ch < 0 ? '#fc8181' : '#718096';
+    const pvaColor = pvaVal > 0 ? '#68d391' : pvaVal < 0 ? '#fc8181' : '#718096';
+    const volColor = vol >= 100 ? '#68d391' : vol >= 20 ? '#f6e05e' : '#718096';
+    return `<tr>
+      <td><b>${s.replace('USDT','')}</b></td>
+      <td>${pr > 0 ? '$' + parseFloat(pr).toPrecision(5) : '—'}</td>
+      <td style="color:${chColor};font-weight:600">${ch > 0 ? '+' : ''}${ch}%</td>
+      <td style="color:${volColor}">${vol > 0 ? '$' + vol + 'M' : '—'}</td>
+      <td style="color:${pvaColor}">${pvaVal > 0 ? '+' : ''}${pvaVal}%</td>
+      <td style="color:${scoreColor};font-weight:600">${sc}</td>
+      <td><div style="background:#1a202c;border-radius:4px;height:6px;width:100px;overflow:hidden">
+        <div style="background:${scoreColor};height:6px;width:${Math.min(sc/minScore*100,100)}%"></div>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
 </script>
+
+<div style="padding:0 24px 24px">
+  <div style="font-size:.85rem;font-weight:600;color:#718096;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px">Market Overview</div>
+  <div style="background:#161b27;border:1px solid #2d3748;border-radius:12px;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+      <thead><tr>
+        <th style="text-align:left;padding:8px 12px;color:#718096;border-bottom:1px solid #2d3748">Coin</th>
+        <th style="text-align:left;padding:8px 12px;color:#718096;border-bottom:1px solid #2d3748">Price</th>
+        <th style="text-align:left;padding:8px 12px;color:#718096;border-bottom:1px solid #2d3748">24h</th>
+        <th style="text-align:left;padding:8px 12px;color:#718096;border-bottom:1px solid #2d3748">Volume</th>
+        <th style="text-align:left;padding:8px 12px;color:#718096;border-bottom:1px solid #2d3748">vs Avg</th>
+        <th style="text-align:left;padding:8px 12px;color:#718096;border-bottom:1px solid #2d3748">Score</th>
+        <th style="text-align:left;padding:8px 12px;color:#718096;border-bottom:1px solid #2d3748">Strength</th>
+      </tr></thead>
+      <tbody id="market-body"></tbody>
+    </table>
+  </div>
+</div>
 </body>
 </html>"""
 
@@ -459,7 +596,7 @@ class Handler(BaseHTTPRequestHandler):
     def send_json(self, data, code=200):
         body = json.dumps(data).encode()
         self.send_response(code)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", "application/json"); self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Content-Length", len(body))
         self.end_headers()
         self.wfile.write(body)
@@ -468,6 +605,7 @@ class Handler(BaseHTTPRequestHandler):
         body = html.encode()
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
         self.send_header("Content-Length", len(body))
         self.end_headers()
         self.wfile.write(body)
@@ -490,17 +628,19 @@ class Handler(BaseHTTPRequestHandler):
 
         elif path == "/prices":
             from urllib.parse import parse_qs, urlparse
+            import json as _json
             qs      = parse_qs(urlparse(self.path).query)
-            symbols = qs.get("symbols", [""])[0].split(",")
+            symbols = [s for s in qs.get("symbols", [""])[0].split(",") if s]
             result  = {}
-            for sym in symbols:
-                if sym:
-                    try:
-                        import requests as req
-                        r = req.get(f"https://api.binance.com/api/v3/ticker/price?symbol={sym}", timeout=5)
-                        result[sym] = float(r.json()["price"])
-                    except:
-                        pass
+            try:
+                import requests as req
+                r = req.get("https://api.binance.com/api/v3/ticker/price", timeout=10)
+                all_prices = {item["symbol"]: float(item["price"]) for item in r.json()}
+                for sym in symbols:
+                    if sym in all_prices:
+                        result[sym] = all_prices[sym]
+            except:
+                pass
             self.send_json(result)
 
         elif path == "/backtest/status":

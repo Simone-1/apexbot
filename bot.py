@@ -35,7 +35,7 @@ CFG = {
     "min_score":       35,       # Minimum signal score to buy
     "max_pump":        15,       # Ignore coins already pumped > 15%
     "min_rise":        1.5,      # Minimum 24h rise % to consider
-    "scan_interval":   30,       # Seconds between scans
+    "scan_interval":   15,       # Seconds between scans
     "peak_hours":      (9, 23), # UTC hours for peak market activity
     "partial_tp_trailing": 0.015,  # 1.5% trailing stop after partial TP
     "max_trade_hours":     6,      # Close trade if open longer than this
@@ -51,7 +51,7 @@ COINS = [
     "APTUSDT", "STXUSDT", "LINKUSDT",
     "ADAUSDT", "DOTUSDT", "LTCUSDT", "BNBUSDT",
     "UNIUSDT", "AAVEUSDT", "INJUSDT", "RUNEUSDT",
-    "PENDLEUSDT", "STRKUSDT", "BLURUSDT", "ZETAUSDT",
+    "PENDLEUSDT", "BLURUSDT", "ZETAUSDT",
     "ICPUSDT", "JTOUSDT"
 ]
 
@@ -226,21 +226,38 @@ def check_daily_reset():
 
 # ─── SIGNAL SCORING ───────────────────────────────────────────────────────────
 def get_short_term_momentum(symbol):
-    """Get 15min momentum: recent price change and volume spike."""
+    """Get 5min and 15min momentum: recent price change and volume spike."""
     try:
-        candles = pub("/api/v3/klines", params={"symbol": symbol, "interval": "15m", "limit": 10})
-        if not candles or len(candles) < 6:
-            return 0.0, 1.0
-        # Price change over last 2 candles (30 mins)
-        open_price  = float(candles[-3][1])
-        close_price = float(candles[-1][4])
-        pct_15m = ((close_price - open_price) / open_price) * 100 if open_price > 0 else 0.0
-        # Volume spike: last 2 candles vs previous 4
-        recent_vol = sum(float(candles[i][5]) * float(candles[i][4]) for i in [-3, -2, -1])
-        prev_vol   = sum(float(candles[i][5]) * float(candles[i][4]) for i in range(-7, -3))
-        avg_prev   = prev_vol / 4 if prev_vol > 0 else 1.0
-        vol_ratio  = (recent_vol / 3) / avg_prev if avg_prev > 0 else 1.0
-        return pct_15m, vol_ratio
+        # 5-min candles — catch very early moves
+        candles5 = pub("/api/v3/klines", params={"symbol": symbol, "interval": "5m", "limit": 12})
+        pct_5m = 0.0
+        vol_ratio_5m = 1.0
+        if candles5 and len(candles5) >= 6:
+            open_5  = float(candles5[-3][1])
+            close_5 = float(candles5[-1][4])
+            pct_5m  = ((close_5 - open_5) / open_5) * 100 if open_5 > 0 else 0.0
+            recent_vol5 = sum(float(candles5[i][5]) * float(candles5[i][4]) for i in [-3, -2, -1])
+            prev_vol5   = sum(float(candles5[i][5]) * float(candles5[i][4]) for i in range(-9, -3))
+            avg_prev5   = prev_vol5 / 6 if prev_vol5 > 0 else 1.0
+            vol_ratio_5m = (recent_vol5 / 3) / avg_prev5 if avg_prev5 > 0 else 1.0
+
+        # 15-min candles — confirm the move
+        candles15 = pub("/api/v3/klines", params={"symbol": symbol, "interval": "15m", "limit": 10})
+        pct_15m = 0.0
+        vol_ratio_15m = 1.0
+        if candles15 and len(candles15) >= 6:
+            open_15  = float(candles15[-3][1])
+            close_15 = float(candles15[-1][4])
+            pct_15m  = ((close_15 - open_15) / open_15) * 100 if open_15 > 0 else 0.0
+            recent_vol15 = sum(float(candles15[i][5]) * float(candles15[i][4]) for i in [-3, -2, -1])
+            prev_vol15   = sum(float(candles15[i][5]) * float(candles15[i][4]) for i in range(-7, -3))
+            avg_prev15   = prev_vol15 / 4 if prev_vol15 > 0 else 1.0
+            vol_ratio_15m = (recent_vol15 / 3) / avg_prev15 if avg_prev15 > 0 else 1.0
+
+        # Use the stronger of the two signals
+        pct   = max(pct_5m, pct_15m)
+        ratio = max(vol_ratio_5m, vol_ratio_15m)
+        return pct, ratio
     except:
         return 0.0, 1.0
 
@@ -336,7 +353,7 @@ def calc_trade_size(balance, score=None):
     return size
 
 # ─── BUY ──────────────────────────────────────────────────────────────────────
-BLOCKED_SYMBOLS = {"1000SATSUSDT", "ORDIUSDT"}  # Permanently restricted on this account
+BLOCKED_SYMBOLS = {"STRKUSDT", "1000SATSUSDT", "ORDIUSDT"}  # Permanently restricted on this account
 
 BUY_COOLDOWN_SECS = 0  # 15 minutes between new position opens
 

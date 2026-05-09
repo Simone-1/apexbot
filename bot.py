@@ -299,12 +299,24 @@ def score(ticker):
         if pct_15m < -0.5:
             return 0
 
-        # Don't enter if price is within 5% of 24h high — move already over
-        high_24h = float(ticker.get("highPrice", 0))
-        if high_24h > 0 and price > 0:
-            pct_from_high = (high_24h - price) / high_24h * 100
-            if pct_from_high < 5:
-                return 0
+        # Move age filter — skip if coin has been pumping for more than 3 hours
+        # This catches early moves and avoids late entries
+        try:
+            candles = pub("/api/v3/klines", params={"symbol": ticker["symbol"], "interval": "1h", "limit": 6})
+            if candles and len(candles) >= 4:
+                # Find how many consecutive green hourly candles (rising)
+                green_hours = 0
+                for c in reversed(candles[:-1]):  # skip current incomplete candle
+                    candle_open  = float(c[1])
+                    candle_close = float(c[4])
+                    if candle_close > candle_open:
+                        green_hours += 1
+                    else:
+                        break
+                if green_hours >= 3:
+                    return 0  # Been pumping 3+ hours — too late
+        except:
+            pass
 
         s = 0
 

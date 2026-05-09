@@ -29,7 +29,7 @@ CFG = {
     "min_trade_usd":   20,       # Minimum trade size in USDT
     "max_trade_usd":   20,       # Maximum trade size in USDT
     "max_positions":   8,        # Max concurrent open trades
-    "take_profit":     0.030,    # 3.0% take profit
+    "take_profit":     0.010,    # 3.0% take profit
     "stop_loss":       0.020,    # 2.0% hard stop loss
     "trailing_stop":   0.025,    # 2.5% trailing stop from peak
     "min_score":       35,       # Minimum signal score to buy

@@ -82,6 +82,7 @@ state = {
     "last_day":      datetime.now(timezone.utc).strftime("%Y-%m-%d"),
     "last_buy_time": 0,  # timestamp of last buy — for cooldown
     "symbol_cooldowns": {},  # per-symbol cooldown timestamps
+    "pending_signals": {},  # symbol -> first_seen timestamp for confirmation
     "market_mode":   "neutral",
     "btc_change_24h": 0.0,
     "btc_change_7d":  0.0,
@@ -806,13 +807,34 @@ def scan_loop():
                         top_str = " | ".join([f"{s[0]}:{s[1]}" for s in top if s[1] > 0])
                         addlog(f"Scan #{state['scan_count']} — no signals ({mode}) | Balance:${balance} | Open:{len(state['open_trades'])}" + (f" | Top: {top_str}" if top_str else ""))
                     else:
+                        now = time.time()
+                        pending = state.get("pending_signals", {})
+                        # Clean up pending signals for coins no longer signalling
+                        candidate_syms = {t["symbol"] for t, sc in candidates}
+                        pending = {s: t for s, t in pending.items() if s in candidate_syms}
+
                         for ticker, sc in candidates[:3]:
                             if len(state["open_trades"]) >= CFG["max_positions"]:
                                 break
+                            sym = ticker["symbol"]
                             price = float(ticker["lastPrice"])
-                            addlog(f"📡 Signal [{sc}] {ticker['symbol']} +{float(ticker['priceChangePercent']):.1f}% | Vol:${float(ticker['quoteVolume'])/1e6:.1f}M")
-                            buy(ticker["symbol"], price, sc)
-                            time.sleep(1)
+
+                            if sym not in pending:
+                                # First time seeing this signal — record and wait for confirmation
+                                pending[sym] = now
+                                addlog(f"👀 Signal [{sc}] {sym} +{float(ticker['priceChangePercent']):.1f}% — waiting for confirmation")
+                            else:
+                                # Signal persisted — check if enough time passed (1 scan = 15s)
+                                age = now - pending[sym]
+                                if age >= CFG["scan_interval"]:
+                                    addlog(f"📡 Signal [{sc}] {sym} +{float(ticker['priceChangePercent']):.1f}% | Vol:${float(ticker['quoteVolume'])/1e6:.1f}M | Confirmed after {age:.0f}s")
+                                    buy(sym, price, sc)
+                                    del pending[sym]
+                                    time.sleep(1)
+                                else:
+                                    addlog(f"⏳ Signal [{sc}] {sym} — confirming ({age:.0f}s/{CFG['scan_interval']}s)")
+
+                        state["pending_signals"] = pending
             else:
                 addlog(f"Max positions ({CFG['max_positions']}) open — monitoring only")
 

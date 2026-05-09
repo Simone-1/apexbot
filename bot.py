@@ -295,8 +295,8 @@ def score(ticker):
         # Get short-term momentum (primary signal)
         pct_15m, vol_ratio_15m = get_short_term_momentum(ticker["symbol"])
 
-        # Must be moving up in last 30 mins — if not, skip entirely
-        if pct_15m <= 0:
+        # Must not be falling sharply in last 30 mins
+        if pct_15m < -0.5:
             return 0
 
         s = 0

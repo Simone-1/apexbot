@@ -566,9 +566,9 @@ def check_stops():
 # ─── MARKET MODE ──────────────────────────────────────────────────────────────
 # Settings for each market mode
 MARKET_MODES = {
-    "bull":    {"take_profit": 0.045, "trailing_stop": 0.035, "stop_loss": 0.020, "partial_tp_trailing": 0.020},
-    "neutral": {"take_profit": 0.030, "trailing_stop": 0.025, "stop_loss": 0.020, "partial_tp_trailing": 0.015},
-    "bear":    {"take_profit": 0.020, "trailing_stop": 0.015, "stop_loss": 0.015, "partial_tp_trailing": 0.010},
+    "bull":    {"take_profit": 0.010, "trailing_stop": 0.015, "stop_loss": 0.020, "partial_tp_trailing": 0.010},
+    "neutral": {"take_profit": 0.010, "trailing_stop": 0.015, "stop_loss": 0.020, "partial_tp_trailing": 0.010},
+    "bear":    {"take_profit": 0.010, "trailing_stop": 0.010, "stop_loss": 0.015, "partial_tp_trailing": 0.010},
 }
 
 def get_market_mode():

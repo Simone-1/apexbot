@@ -547,40 +547,9 @@ def check_stops():
                 except:
                     pass
 
-            # Tiered exit — sell half at TP, tighten trailing stop on remainder
-            if not trade.get("partial") and price >= trade["take_profit"]:
-                symbol = trade["symbol"]
-                asset  = symbol.replace("USDT", "")
-                info   = _exchange_info.get(symbol, {})
-                step   = info.get("step", 0.001)
-                min_qty = info.get("min_qty", 0.001)
-                coin_bal = get_coin_balance(asset)
-                # Use half of actual coin balance (more reliable than stored qty)
-                half_qty = round_step(coin_bal / 2, step)
-                # Fallback to stored qty if balance lookup fails
-                if half_qty < min_qty:
-                    half_qty = round_step(trade.get("qty", 0) / 2, step)
-                if half_qty >= min_qty and half_qty * price >= info.get("min_notional", 5.0):
-                    try:
-                        signed("/api/v3/order", "POST", {
-                            "symbol":   symbol,
-                            "side":     "SELL",
-                            "type":     "MARKET",
-                            "quantity": f"{half_qty:.8f}".rstrip("0").rstrip("."),
-                        })
-                        partial_pnl = round((price - trade["entry_price"]) / trade["entry_price"] * (trade["usd_size"] / 2), 3)
-                        state["total_pnl"] = round(state.get("total_pnl", 0) + partial_pnl, 3)
-                        state["daily_pnl"] = round(state.get("daily_pnl", 0) + partial_pnl, 3)
-                        state["open_trades"][tid]["partial"] = True
-                        state["open_trades"][tid]["usd_size"] = round(trade["usd_size"] / 2, 2)
-                        state["open_trades"][tid]["trailing_stop"] = CFG["partial_tp_trailing"]
-                        trade["partial"] = True
-                        addlog(f"⚡ PARTIAL TP {symbol} @ {price:.6f} | Half sold | PnL: +{partial_pnl:.2f} | Trailing tightened to 1%")
-                        save()
-                    except Exception as e:
-                        addlog(f"❌ PARTIAL SELL FAILED {symbol}: {e}", "error")
-                else:
-                    close(trade, price, "TP")
+            # Full exit at TP
+            if price >= trade["take_profit"]:
+                close(trade, price, "TP")
             elif price <= trade["stop_loss"]:
                 close(trade, price, "SL")
             else:

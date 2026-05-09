@@ -299,6 +299,13 @@ def score(ticker):
         if pct_15m < -0.5:
             return 0
 
+        # Don't enter if price is within 5% of 24h high — move already over
+        high_24h = float(ticker.get("highPrice", 0))
+        if high_24h > 0 and price > 0:
+            pct_from_high = (high_24h - price) / high_24h * 100
+            if pct_from_high < 5:
+                return 0
+
         s = 0
 
         # SHORT-TERM MOMENTUM — primary signal (up to 40 pts)

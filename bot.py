@@ -38,7 +38,7 @@ CFG = {
     "scan_interval":   15,       # Seconds between scans
     "peak_hours":      (9, 23), # UTC hours for peak market activity
     "partial_tp_trailing": 0.015,  # 1.5% trailing stop after partial TP
-    "max_trade_hours":     6,      # Close trade if open longer than this
+    "max_trade_hours":     3,      # Close trade if open longer than this
 }
 
 COINS = [

@@ -79,97 +79,84 @@ fi
 
 echo ""
 echo "[ MEXCSniper ]"
-if ! systemctl is-active --quiet mexcsniper; then
+MEXC_PID=$(pgrep -f "mexcsniper.py" | head -1)
+if [ -z "$MEXC_PID" ]; then
     warn "mexcsniper not running"
     ISSUES=$((ISSUES+1))
 else
-    ok "mexcsniper running (PID $(systemctl show -p MainPID --value mexcsniper))"
+    ok "mexcsniper running (PID $MEXC_PID)"
 fi
-if ! systemctl is-active --quiet mexcsniper-dashboard; then
-    warn "mexcsniper-dashboard not running"
-    ISSUES=$((ISSUES+1))
-else
-    HTTP_MEXC=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8083 --max-time 5)
-    [ "$HTTP_MEXC" = "200" ] && ok "MEXCSniper dashboard HTTP 200" || warn "MEXCSniper dashboard not responding (HTTP $HTTP_MEXC)"
-fi
+HTTP_MEXC=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8083 --max-time 5)
+[ "$HTTP_MEXC" = "200" ] && ok "MEXCSniper dashboard HTTP 200" || { warn "MEXCSniper dashboard not responding (HTTP $HTTP_MEXC)"; ISSUES=$((ISSUES+1)); }
 
 echo ""
 echo "[ GateSniper ]"
-if ! systemctl is-active --quiet gatesniper; then
+GATE_PID=$(pgrep -f "gatesniper.py" | head -1)
+if [ -z "$GATE_PID" ]; then
     warn "gatesniper not running"
     ISSUES=$((ISSUES+1))
 else
-    ok "gatesniper running (PID $(systemctl show -p MainPID --value gatesniper))"
+    ok "gatesniper running (PID $GATE_PID)"
 fi
 HTTP_GATE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8084 --max-time 5)
 [ "$HTTP_GATE" = "200" ] && ok "GateSniper dashboard HTTP 200" || warn "GateSniper dashboard not responding (HTTP $HTTP_GATE)"
 
 echo ""
 echo "[ BitgetSniper ]"
-if ! systemctl is-active --quiet bitgetsniper; then
+BITGET_PID=$(pgrep -f "bitgetsniper.py" | head -1)
+if [ -z "$BITGET_PID" ]; then
     warn "bitgetsniper not running"
     ISSUES=$((ISSUES+1))
 else
-    ok "bitgetsniper running (PID $(systemctl show -p MainPID --value bitgetsniper))"
+    ok "bitgetsniper running (PID $BITGET_PID)"
 fi
-if ! systemctl is-active --quiet bitgetdashboard; then
-    warn "bitgetdashboard not running"
-    ISSUES=$((ISSUES+1))
-else
-    HTTP_BITGET=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8085 --max-time 5)
-    [ "$HTTP_BITGET" = "200" ] && ok "BitgetSniper dashboard HTTP 200" || warn "BitgetSniper dashboard not responding (HTTP $HTTP_BITGET)"
-fi
+HTTP_BITGET=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8090 --max-time 5)
+[ "$HTTP_BITGET" = "200" ] && ok "BitgetSniper dashboard HTTP 200" || { warn "BitgetSniper dashboard not responding (HTTP $HTTP_BITGET)"; ISSUES=$((ISSUES+1)); }
 
 echo ""
 echo "[ ListingSniper ]"
-if ! systemctl is-active --quiet listingsniper; then
+LISTING_PID=$(pgrep -f "sniper.py" | head -1)
+if [ -z "$LISTING_PID" ]; then
     warn "listingsniper not running"
     ISSUES=$((ISSUES+1))
 else
-    ok "listingsniper running (PID $(systemctl show -p MainPID --value listingsniper))"
+    ok "listingsniper running (PID $LISTING_PID)"
 fi
-if ! systemctl is-active --quiet listingsniper-dashboard; then
-    warn "listingsniper-dashboard not running"
-    ISSUES=$((ISSUES+1))
-else
-    HTTP_LISTING=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8081 --max-time 5)
-    [ "$HTTP_LISTING" = "200" ] && ok "ListingSniper dashboard HTTP 200" || warn "ListingSniper dashboard not responding (HTTP $HTTP_LISTING)"
-fi
+HTTP_LISTING=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8082 --max-time 5)
+[ "$HTTP_LISTING" = "200" ] && ok "ListingSniper dashboard HTTP 200" || { warn "ListingSniper dashboard not responding (HTTP $HTTP_LISTING)"; ISSUES=$((ISSUES+1)); }
 
 echo ""
 echo "[ ScalpBot ]"
-if ! systemctl is-active --quiet scalpbot; then
+SCALP_PID=$(pgrep -f "scalpbot.py" | head -1)
+if [ -z "$SCALP_PID" ]; then
     warn "scalpbot not running"
     ISSUES=$((ISSUES+1))
 else
-    ok "scalpbot running (PID $(systemctl show -p MainPID --value scalpbot))"
+    ok "scalpbot running (PID $SCALP_PID)"
 fi
-if ! systemctl is-active --quiet scalpdash; then
-    warn "scalpdash not running"
-    ISSUES=$((ISSUES+1))
-else
-    HTTP_SCALP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8087 --max-time 5)
-    [ "$HTTP_SCALP" = "200" ] && ok "ScalpBot dashboard HTTP 200" || warn "ScalpBot dashboard not responding (HTTP $HTTP_SCALP)"
-fi
+HTTP_SCALP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8087 --max-time 5)
+[ "$HTTP_SCALP" = "200" ] && ok "ScalpBot dashboard HTTP 200" || { warn "ScalpBot dashboard not responding (HTTP $HTTP_SCALP)"; ISSUES=$((ISSUES+1)); }
 
 echo ""
 echo "[ MeanBot ]"
-if ! systemctl is-active --quiet meandash 2>/dev/null; then
-    warn "meandash not running"
+MEAN_PID=$(pgrep -f "meanbot.py" | head -1)
+if [ -z "$MEAN_PID" ]; then
+    warn "meanbot not running"
     ISSUES=$((ISSUES+1))
 else
-    ok "meandash running (PID $(systemctl show -p MainPID --value meandash))"
-    HTTP_MEAN=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8088 --max-time 5)
-    [ "$HTTP_MEAN" = "200" ] && ok "MeanBot dashboard HTTP 200" || warn "MeanBot dashboard not responding (HTTP $HTTP_MEAN)"
+    ok "meanbot running (PID $MEAN_PID)"
 fi
+HTTP_MEAN=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8088 --max-time 5)
+[ "$HTTP_MEAN" = "200" ] && ok "MeanBot dashboard HTTP 200" || { warn "MeanBot dashboard not responding (HTTP $HTTP_MEAN)"; ISSUES=$((ISSUES+1)); }
 
 echo ""
 echo "[ CorrBot ]"
-if ! systemctl is-active --quiet corrbot; then
+CORR_PID=$(pgrep -f "corrbot.py" | head -1)
+if [ -z "$CORR_PID" ]; then
     warn "corrbot not running"
     ISSUES=$((ISSUES+1))
 else
-    ok "corrbot running (PID $(systemctl show -p MainPID --value corrbot))"
+    ok "corrbot running (PID $CORR_PID)"
     CORR_SCAN=$(journalctl -u corrbot --no-pager -n 50 2>/dev/null | grep "Scan #" | tail -1)
     if [ -z "$CORR_SCAN" ]; then
         warn "CorrBot no scan log found"

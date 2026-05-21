@@ -200,6 +200,8 @@ def signed(path, method="GET", params=None):
 
 # ─── BALANCE ──────────────────────────────────────────────────────────────────
 def get_balance():
+    if PAPER_MODE:
+        return state.get("balance_cache") or 500.0
     try:
         d = signed("/api/v3/account")
         return round(float(next((b["free"] for b in d["balances"] if b["asset"] == "USDT"), 0)), 2)

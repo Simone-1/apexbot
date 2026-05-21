@@ -57,7 +57,10 @@ COINS = [
 
 BASE       = "https://api.binance.com"
 API_KEY    = os.environ.get("BINANCE_API_KEY", "")
-API_SECRET = os.environ.get("BINANCE_API_SECRET", "")
+API_SECRET     = os.environ.get("BINANCE_API_SECRET", "")
+
+# ─── PAPER MODE ───────────────────────────────────────────────────────────────
+PAPER_MODE = True
 
 # ─── LOGGING ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -418,12 +421,15 @@ def buy(symbol, price, score=None):
         return
 
     try:
-        signed("/api/v3/order", "POST", {
-            "symbol":        symbol,
-            "side":          "BUY",
-            "type":          "MARKET",
-            "quoteOrderQty": f"{trade_usd:.2f}",
-        })
+        if PAPER_MODE:
+            addlog(f"[PAPER] BUY {symbol} @ ${price:.6f} (${trade_usd})")
+        else:
+            signed("/api/v3/order", "POST", {
+                "symbol":        symbol,
+                "side":          "BUY",
+                "type":          "MARKET",
+                "quoteOrderQty": f"{trade_usd:.2f}",
+            })
 
         tp = price * (1 + CFG["take_profit"])
         sl = price * (1 - CFG["stop_loss"])
@@ -461,6 +467,14 @@ def buy(symbol, price, score=None):
 def close(trade, price, reason):
     symbol = trade["symbol"]
     asset  = symbol.replace("USDT", "").replace("1000SATS", "1000SATS")
+
+    # PAPER MODE: skip real sell, record simulated close
+    if PAPER_MODE:
+        sim_qty = trade.get("qty", 0)
+        addlog(f"[PAPER] SELL {symbol} qty={sim_qty} @ ${price:.6f} | {reason}")
+        pnl = (price - trade["entry_price"]) / trade["entry_price"] * trade["usd_size"]
+        _close_record(trade, price, pnl, reason)
+        return
 
     # Get actual coin balance to sell — avoids "insufficient balance" on sells
     coin_bal = get_coin_balance(asset)

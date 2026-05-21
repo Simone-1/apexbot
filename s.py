@@ -1,6 +1,6 @@
 import json, os, threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from bot import state, start, stop, get_balance, CFG
+from bot import state, start, stop, get_balance, CFG, PAPER_MODE
 
 HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -613,7 +613,9 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = self.path.split("?")[0]
 
-        if path == "/" or path == "/dashboard":
+        if path == "/ping":
+            self.send_json({"paper_mode": PAPER_MODE, "ok": True})
+        elif path == "/" or path == "/dashboard":
             self.send_html(HTML)
 
         elif path == "/state":
